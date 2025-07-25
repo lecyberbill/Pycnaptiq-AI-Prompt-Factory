@@ -22,39 +22,45 @@ body {
     display: flex;
     flex-direction: row; /* Arrange children horizontally */
     gap: 20px;
-    width: 100%;
-    max-width: 1200px;
-    background-color: transparent; /* Keep main-container transparent */
+    /* Removed max-width to allow content to dictate width, or control with body padding */
+    width: 100%; /* Ensure it takes full width to distribute space */
+    background-color: transparent;
     align-items: flex-start; /* Align items to the top */
-}
-
-/* New style for #canvas-and-prompt-container */
-#canvas-and-prompt-container {
-    display: flex;
-    flex-direction: column; /* Stack canvas and prompt vertically */
-    flex-grow: 1; /* Allow it to take available space */
-    gap: 20px; /* Space between canvas and prompt */
+    /* Removed max-width to allow content to dictate width, or control with body padding */
 }
 
 #controls-sidebar {
-    grid-area: sidebar;
+    /* Existing styles */
     display: flex;
     flex-direction: column;
     padding: 15px;
-    background: linear-gradient(to bottom right, #616280, #1f253b); /* Gradient background for panels */
-    border-radius: 15px; /* More rounded corners */
-    box-shadow: 8px 8px 16px #1a1e27, -8px -8px 16px #6a707a; /* Neumorphic shadow for dark theme */
+    background: linear-gradient(to bottom right, #616280, #1f253b);
+    border-radius: 15px;
+    box-shadow: 8px 8px 16px #1a1e27, -8px -8px 16px #6a707a;
+    width: 250px; /* Fixed width for left sidebar */
+    flex-shrink: 0; /* Prevent shrinking */
+}
+
+#canvas-and-prompt-container {
+    display: flex;
+    flex-direction: column; /* Stack canvas and prompt vertically */
+    width: 800px; /* Fixed width for the canvas and prompt area */
+    flex-grow: 0; /* Override flex-grow: 1 */
+    flex-shrink: 0; /* Prevent shrinking */
+    gap: 20px; /* Space between canvas and prompt */
 }
 
 #right-sidebar {
-    grid-area: right-sidebar;
+    /* Existing styles */
     display: flex;
     flex-direction: column;
     padding: 15px;
-    background: linear-gradient(to bottom right, #616280, #1f253b); /* Gradient background for panels */
-    border-radius: 15px; /* More rounded corners */
-    box-shadow: 8px 8px 16px #1a1e27, -8px -8px 16px #6a707a; /* Neumorphic shadow for dark theme */
-    gap: 15px; /* Space between control sections inside right sidebar */
+    background: linear-gradient(to bottom right, #616280, #1f253b);
+    border-radius: 15px;
+    box-shadow: 8px 8px 16px #1a1e27, -8px -8px 16px #6a707a;
+    gap: 15px;
+    width: 250px; /* Fixed width for right sidebar */
+    flex-shrink: 0; /* Prevent shrinking */
 }
 
 #controls { /* This div wraps all control sections */
