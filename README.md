@@ -26,7 +26,7 @@ To run Shap Prompteur locally, you need Python installed on your system to serve
 
 ### Prerequisites
 
--   Python 3.x
+-   A functional Python 3.x environment is required to serve the static files.
 
 ### Installation and Running
 
