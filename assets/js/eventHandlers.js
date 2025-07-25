@@ -394,10 +394,13 @@ function handleDeletePointBtn() {
 }
 
 function handleConvertToBezierBtn() {
-    // This is a complex feature requiring adding Bezier control points and
-    // corresponding UI for manipulating them.
-    console.log("Convert to Bezier button clicked: This feature is not yet fully implemented.");
-    alert("Bezier curve conversion is a complex feature and is not yet implemented.");
+    const selectedGroup = SvgManager.getSelectedShapeGroup();
+    if (selectedGroup && selectedGroup.getAttribute('data-shape-type') === 'freeform' && selectedFreeformPointIndex !== -1) {
+        SvgManager.convertToCubicBezier(selectedGroup, selectedFreeformPointIndex);
+        console.log("Converted to Bezier");
+    } else {
+        alert("Please select a point on a freeform shape to convert.");
+    }
 }
 
 function handleToggleEditModeBtn() {
@@ -1156,7 +1159,7 @@ document.addEventListener('dblclick', (e) => {
 
         // Populate currentFreeformPathData from the selected shape's path data
         // Assuming SvgManager has a function to get path data from an SVGPathElement
-        currentFreeformPathData = SvgManager.getFreeformPathData(currentFreeformPathElement);
+        currentFreeformPathData = group. _pathData || SvgManager.getFreeformPathData(currentFreeformPathElement);
 
         SvgManager.setSelectedShapeGroup(currentFreeformGroup); // Select the shape to show points
         DragAndResize.enableDragAndResize(currentFreeformGroup); // Ensure it's resizable

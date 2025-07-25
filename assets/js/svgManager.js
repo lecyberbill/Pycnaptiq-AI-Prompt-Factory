@@ -173,16 +173,114 @@ export function addFreeformPointVisual(group, point, index) {
     return pointVisual; // Return the created point visual
 }
 
+function addBezierHandle(group, x, y, pointIndex, handleType) {
+    const handle = document.createElementNS(SVG_NS, 'circle');
+    handle.setAttribute('cx', x);
+    handle.setAttribute('cy', y);
+    handle.setAttribute('r', 4);
+    handle.setAttribute('fill', 'yellow');
+    handle.setAttribute('stroke', 'black');
+    handle.setAttribute('stroke-width', 1);
+    handle.setAttribute('class', 'bezier-handle');
+    handle.setAttribute('data-point-index', pointIndex);
+    handle.setAttribute('data-handle-type', handleType); // 'c1' or 'c2'
+    group.appendChild(handle);
+    return handle;
+}
+
+function addTangentLine(group, x1, y1, x2, y2) {
+    const line = document.createElementNS(SVG_NS, 'line');
+    line.setAttribute('x1', x1);
+    line.setAttribute('y1', y1);
+    line.setAttribute('x2', x2);
+    line.setAttribute('y2', y2);
+    line.setAttribute('stroke', 'grey');
+    line.setAttribute('stroke-dasharray', '2,2');
+    line.setAttribute('class', 'tangent-line');
+    group.appendChild(line);
+    return line;
+}
+
 // Helper to convert path data array to SVG 'd' attribute string
 function pathToD(pathData) {
+    if (!pathData) return '';
     return pathData.map(p => {
-        if (p.cmd === 'M' || p.cmd === 'L') {
-            return `${p.cmd}${p.x},${p.y}`;
-        } else if (p.cmd === 'Z') {
-            return 'Z';
+        switch (p.cmd) {
+            case 'M':
+            case 'L':
+                return `${p.cmd}${p.x},${p.y}`;
+            case 'C':
+                return `C${p.x1},${p.y1} ${p.x2},${p.y2} ${p.x},${p.y}`;
+            case 'Z':
+                return 'Z';
+            default:
+                return '';
         }
-    return '';
-}).join(' ');
+    }).join(' ');
+}
+
+export function convertToCubicBezier(group, commandIndexToConvert) {
+    if (!group || group.getAttribute('data-shape-type') !== 'freeform' || !group._pathData) {
+        return;
+    }
+
+    let pathData = group._pathData;
+    if (commandIndexToConvert <= 0 || commandIndexToConvert >= pathData.length) {
+        // Cannot convert M or Z commands directly, or out of bounds.
+        // The first point (M) is a starting point, not a segment to convert.
+        // The Z command is a closing command, not a segment with control points.
+        return;
+    }
+
+    const currentCommand = pathData[commandIndexToConvert];
+    const previousCommand = pathData[commandIndexToConvert - 1];
+
+    // Ensure the current command is a 'L' (line) command, as we only convert lines to curves.
+    // If it's already a 'C' command, no need to convert.
+    // If it's 'M' or 'Z', it should have been caught by the initial boundary check.
+    if (currentCommand.cmd !== 'L') {
+        return;
+    }
+
+    // Get the coordinates of the start point of the segment
+    let p0_x, p0_y;
+    if (previousCommand.cmd === 'M' || previousCommand.cmd === 'L' || previousCommand.cmd === 'C') {
+        p0_x = previousCommand.x;
+        p0_y = previousCommand.y;
+    } else {
+        // This case should ideally not be reached with valid path data
+        console.warn("Unexpected previous command type:", previousCommand.cmd);
+        return;
+    }
+
+    // The end point of the segment is defined by the current 'L' command's coordinates
+    const p1_x = currentCommand.x;
+    const p1_y = currentCommand.y;
+
+    // Calculate control points for a smooth curve
+    const cp1x = p0_x + (p1_x - p0_x) / 3;
+    const cp1y = p0_y + (p1_y - p0_y) / 3;
+    const cp2x = p0_x + 2 * (p1_x - p0_x) / 3;
+    const cp2y = p0_y + 2 * (p1_y - p0_y) / 3;
+
+    // Create the new cubic Bezier command
+    const newBezierCommand = {
+        cmd: 'C',
+        x1: cp1x,
+        y1: cp1y,
+        x2: cp2x,
+        y2: cp2y,
+        x: p1_x,
+        y: p1_y
+    };
+
+    // Replace the 'L' command with the new 'C' command in the path data array
+    pathData[commandIndexToConvert] = newBezierCommand;
+
+    // Update the SVG path element and refresh the appearance (including handles)
+    group._pathData = pathData;
+    updateFreeformPath(group._shapeBody, pathData);
+    updateShapeAppearance(group);
 }
 
 export function getFreeformPathData(pathElement) {
@@ -190,28 +288,24 @@ export function getFreeformPathData(pathElement) {
     if (!dAttribute) return [];
 
     const pathData = [];
-    // Regex to match commands (M, L, Z) and their coordinates
-    // This regex assumes simple M, L, Z commands without complex parsing needs like multiple coordinate pairs per command
-    const commands = dAttribute.match(/[MLZ][^MLZ]*/gi);
+    const commands = dAttribute.match(/[MLCZ][^MLCZ]*/gi);
 
     if (commands) {
         commands.forEach(cmdStr => {
-            const cmd = cmdStr.charAt(0);
-            const coords = cmdStr.substring(1).trim();
+            const cmd = cmdStr.charAt(0).toUpperCase();
+            const coords = cmdStr.substring(1).trim().split(/[ ,]+/).map(parseFloat);
 
             if (cmd === 'M' || cmd === 'L') {
-                const parts = coords.split(',');
-                if (parts.length === 2) {
-                    pathData.push({
-                        cmd: cmd,
-                        x: parseFloat(parts[0]),
-                        y: parseFloat(parts[1])
-                    });
+                if (coords.length === 2) {
+                    pathData.push({ cmd: cmd, x: coords[0], y: coords[1] });
+                }
+            } else if (cmd === 'C') {
+                if (coords.length === 6) {
+                    pathData.push({ cmd: 'C', x1: coords[0], y1: coords[1], x2: coords[2], y2: coords[3], x: coords[4], y: coords[5] });
                 }
             } else if (cmd === 'Z') {
                 pathData.push({ cmd: 'Z' });
             }
-            // Future: Add parsing for C, Q, S, T, A commands here
         });
     }
     return pathData;
@@ -271,10 +365,73 @@ export function updateShapeAppearance(group) {
             clearFreeformPointVisuals(); // Clear existing visuals first
             if (group._pathData) {
                 console.log("Visualizing freeform points. Path data length:", group._pathData.length, "Data:", group._pathData); // DIAGNOSTIC LOG
+                let lastPoint = null;
                 group._pathData.forEach((point, index) => {
-                    if (point.cmd === 'M' || point.cmd === 'L') { // Only visualize M and L commands as points for now
+                    if (point.cmd === 'M' || point.cmd === 'L' || point.cmd === 'C') { // Visualize M, L and C commands
                         const pointVisual = addFreeformPointVisual(group, point, index); // Get the visual
+
+                        if (point.cmd === 'C') {
+                            const handle1 = addBezierHandle(group, point.x1, point.y1, index, 'c1');
+                            const handle2 = addBezierHandle(group, point.x2, point.y2, index, 'c2');
+                            if(lastPoint) {
+                                addTangentLine(group, lastPoint.x, lastPoint.y, point.x1, point.y1);
+                            }
+                            addTangentLine(group, point.x, point.y, point.x2, point.y2);
+
+                            [handle1, handle2].forEach(handle => {
+                                handle.addEventListener('mousedown', (e) => {
+                                    e.stopPropagation();
+                                    const svgCanvas = getSvgCanvas();
+                                    const svgRect = svgCanvas.getBoundingClientRect();
+                                    const startX = e.clientX - svgRect.left;
+                                    const startY = e.clientY - svgRect.top;
+
+                                    const originalHandleX = parseFloat(handle.getAttribute('cx'));
+                                    const originalHandleY = parseFloat(handle.getAttribute('cy'));
+                                    const handleType = handle.getAttribute('data-handle-type');
+                                    const pointIndex = parseInt(handle.getAttribute('data-point-index'));
+
+                                    const doDrag = (moveEvent) => {
+                                        const currentX = moveEvent.clientX - svgRect.left;
+                                        const currentY = moveEvent.clientY - svgRect.top;
+                                        const dx = currentX - startX;
+                                        const dy = currentY - startY;
+
+                                        const newX = originalHandleX + dx;
+                                        const newY = originalHandleY + dy;
+
+                                        handle.setAttribute('cx', newX);
+                                        handle.setAttribute('cy', newY);
+
+                                        const pathData = group._pathData;
+                                        if (pathData && pathData[pointIndex]) {
+                                            if (handleType === 'c1') {
+                                                pathData[pointIndex].x1 = newX;
+                                                pathData[pointIndex].y1 = newY;
+                                            } else {
+                                                pathData[pointIndex].x2 = newX;
+                                                pathData[pointIndex].y2 = newY;
+                                            }
+                                            updateFreeformPath(group._shapeBody, pathData);
+                                            updateShapeAppearance(group);
+                                        }
+                                    };
+
+                                    const endDrag = () => {
+                                        svgCanvas.removeEventListener('mousemove', doDrag);
+                                        svgCanvas.removeEventListener('mouseup', endDrag);
+                                        svgCanvas.removeEventListener('mouseleave', endDrag);
+                                    };
+
+                                    svgCanvas.addEventListener('mousemove', doDrag);
+                                    svgCanvas.addEventListener('mouseup', endDrag);
+                                    svgCanvas.addEventListener('mouseleave', endDrag);
+                                });
+                            });
+                        }
                         
+                        lastPoint = point;
+
                         // Make points draggable
                         pointVisual.addEventListener('mousedown', (e) => {
                             e.stopPropagation(); // Prevent canvas drag/deselect
@@ -303,8 +460,26 @@ export function updateShapeAppearance(group) {
                                 const pointIndex = parseInt(pointVisual.getAttribute('data-point-index'));
                                 
                                 if (pathData && pathData[pointIndex]) {
+                                    const oldX = pathData[pointIndex].x;
+                                    const oldY = pathData[pointIndex].y;
+                                    const dx = newX - oldX;
+                                    const dy = newY - oldY;
+
                                     pathData[pointIndex].x = newX;
                                     pathData[pointIndex].y = newY;
+
+                                    // Update control points of adjacent Bezier curves
+                                    // If the moved point is the start of a Bezier curve (C command)
+                                    if (pathData[pointIndex + 1] && pathData[pointIndex + 1].cmd === 'C') {
+                                        pathData[pointIndex + 1].x1 += dx;
+                                        pathData[pointIndex + 1].y1 += dy;
+                                    }
+                                    // If the moved point is the end of a Bezier curve (C command)
+                                    if (pathData[pointIndex].cmd === 'C') {
+                                        pathData[pointIndex].x2 += dx;
+                                        pathData[pointIndex].y2 += dy;
+                                    }
+                                    
                                     updateFreeformPath(group._shapeBody, pathData);
                                 }
                             };
@@ -342,7 +517,7 @@ export function updateShapeAppearance(group) {
 
 export function clearFreeformPointVisuals() {
     if (selectedShapeGroup && selectedShapeGroup.getAttribute('data-shape-type') === 'freeform') {
-        const visuals = selectedShapeGroup.querySelectorAll('.freeform-point-visual');
+        const visuals = selectedShapeGroup.querySelectorAll('.freeform-point-visual, .bezier-handle, .tangent-line');
         visuals.forEach(visual => visual.remove());
         // Dispatch an event to notify that freeform point visuals have been cleared
         svgCanvas.dispatchEvent(new CustomEvent('freeformPointsCleared'));
@@ -581,4 +756,3 @@ export function sendBackward(group) {
         svgCanvas.insertBefore(group, group.previousSibling);
     }
 }
-
