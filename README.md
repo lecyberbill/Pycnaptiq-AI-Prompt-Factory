@@ -32,10 +32,10 @@ To run Shap Prompteur locally, you need Python installed on your system to serve
 
 1.  **Clone the repository:**
     ```bash
-    git clone [[repository_url_here](https://github.com/lecyberbill/Pycnaptiq-AI-Shap-Prompteur)]
+    git clone https://github.com/lecyberbill/Pycnaptiq-AI-Shap-Prompteur
     cd shap_prompteur
     ```
-    (Note: Replace `[repository_url_here]` with the actual GitHub repository URL if this project is hosted.)
+    
 
 2.  **Start the local server:**
     A convenience batch file `start_server.bat` is provided to quickly launch a Python HTTP server.
