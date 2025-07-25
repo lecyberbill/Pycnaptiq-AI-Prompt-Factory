@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pycnaptiq-AI Shap Prompteur</title>
+    <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+    <div id="main-container">
+        <div id="controls-sidebar">
+            <h1>Pycnaptiq-AI Shap Prompteur</h1>
+            <div id="controls">
+                <!-- Shape Management -->
+                <div id="shape-management" class="control-section">
+                    <h3>Shape Controls</h3>
+                    <div class="control-group">
+                    <div class="custom-dropdown" id="shape-type-dropdown">
+                        <div class="dropdown-selected-value" data-value="rect">Rectangle</div>
+                        <div class="dropdown-options">
+                            <div class="dropdown-option" data-value="rect">Rectangle</div>
+                            <div class="dropdown-option" data-value="circle">Circle</div>
+                            <div class="dropdown-option" data-value="ellipse">Ellipse</div>
+                            <div class="dropdown-option" data-value="polygon">Triangle</div>
+                            <div class="dropdown-option" data-value="freeform">Freeform</div>
+                        </div>
+                    </div>
+                        <input type="color" id="shape-color" value="#ff0000">
+                    </div>
+                    <div class="control-group">
+                        <input type="text" id="shape-label" placeholder="Label">
+                    </div>
+                    <div class="control-group">
+                        <button id="create-shape">Create Shape</button>
+                    </div>
+                    <div class="control-group">
+                        <button id="delete-shape">Delete Selected</button>
+                    </div>
+                    <div class="control-group">
+                        <button id="clear-canvas">Clear Canvas</button>
+                    </div>
+                </div>
+
+                <!-- Background Settings -->
+                <div id="background-settings" class="control-section">
+                    <h3>Background Settings</h3>
+                    <div id="background-controls">
+                        <div class="control-group">
+                            <label for="background-category">Background Idea:</label>
+                        </div>
+                        <div class="custom-dropdown" id="background-category-dropdown">
+                            <div class="dropdown-selected-value"></div>
+                            <div class="dropdown-options"></div>
+                        </div>
+                        <div class="custom-dropdown" id="background-idea-dropdown">
+                            <div class="dropdown-selected-value"></div>
+                            <div class="dropdown-options"></div>
+                        </div>
+                        <div class="control-group">
+                            <button id="apply-background-btn">Apply Background Idea</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stroke Color Settings -->
+                <div id="stroke-settings" class="control-section">
+                    <h3>Stroke Settings</h3>
+                    <div class="control-group">
+                        <label for="stroke-color">Stroke Color:</label>
+                        <input type="color" id="stroke-color" value="#000000">
+                    </div>
+                    <div class="control-group">
+                        <button id="apply-stroke-to-all">Apply to All Shapes</button>
+                    </div>
+                </div>
+
+                <!-- Layer Management -->
+                <div id="layer-management" class="control-section">
+                    <h3>Layer Management</h3>
+                    <div id="z-controls" class="control-group">
+                        <button id="send-backward-btn">Send Backward</button>
+                        <button id="bring-forward-btn">Bring Forward</button>
+                        <button id="send-to-back-btn">Send to Back</button>
+                        <button id="bring-to-front-btn">Bring to Front</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="canvas-and-prompt-container">
+            <div id="canvas-area">
+                <svg id="svg-canvas" width="800" height="600"></svg>
+            </div>
+            <!-- Prompt Container -->
+            <div id="prompt-export-controls">
+                <div class="control-group">
+                    <button id="export-prompt">Generate Prompt</button>
+                    <button id="export-png">Export PNG</button>
+                    <button id="save-svg">Save SVG</button>
+                </div>
+                <textarea id="prompt-display" readonly></textarea>
+            </div>
+        </div>
+
+        <!-- Right Sidebar -->
+        <div id="right-sidebar">
+            <!-- Camera Settings -->
+            <div id="camera-settings" class="control-section">
+                <h3>Camera Angle</h3>
+                <div class="control-group"> <!-- For the label -->
+                    <label>Camera Angle:</label>
+                </div>
+                <div id="camera-angle-buttons"> <!-- This div will contain the buttons and be a flex container -->
+                    <!-- Buttons will be populated by JavaScript -->
+                </div>
+            </div>
+
+            <!-- Lighting & Style Settings -->
+            <div id="lighting-style-settings" class="control-section">
+                <h3>Lighting & Art Style</h3>
+                <div id="lighting-controls" class="control-group">
+                    <label for="lighting-mood-select">Lighting & Mood:</label>
+                </div>
+                <div class="custom-dropdown" id="lighting-mood-dropdown">
+                    <div class="dropdown-selected-value"></div>
+                    <div class="dropdown-options"></div>
+                </div>
+                <div id="art-style-controls" class="control-group">
+                    <label for="art-style-select">Art Style/Medium:</label>
+                </div>
+                <div class="custom-dropdown" id="art-style-dropdown">
+                    <div class="dropdown-selected-value"></div>
+                    <div class="dropdown-options"></div>
+                </div>
+                <!-- Freeform Tools Drawer -->
+                <div id="freeform-tools-drawer" class="control-section" style="display: none;">
+                    <h3>Freeform Tools</h3>
+                    <div class="control-group">
+                        <button id="add-point-btn">Add Point</button>
+                        <button id="delete-point-btn">Delete Point</button>
+                    </div>
+                    <div class="control-group">
+                        <button id="convert-to-bezier-btn">Convert to Bezier</button>
+                        <button id="toggle-edit-mode-btn">Toggle Edit Mode</button>
+                    </div>
+                    <div class="control-group">
+                        <button id="close-path-btn">Close Path</button>
+                    </div>
+                    <div class="control-group">
+                        <button id="done-editing-freeform-btn">Done Editing Freeform</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="assets/js/main.js"></script>
+</body>
+</html>

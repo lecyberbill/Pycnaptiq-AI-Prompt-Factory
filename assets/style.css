@@ -1,0 +1,438 @@
+body {
+    font-family: sans-serif;
+    margin: 0;
+    background: linear-gradient(to bottom right, #dbe0f6, #717894); /* Gradient background */
+    color: #333; /* Dark text for contrast */
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+#controls-sidebar h1 {
+    color: #4a90e2; /* Accent color for H1 */
+    margin-top: 0;
+    margin-bottom: 20px;
+    font-size: 1.5em;
+    text-align: center;
+}
+
+#main-container {
+    display: flex;
+    flex-direction: row; /* Arrange children horizontally */
+    gap: 20px;
+    width: 100%;
+    max-width: 1200px;
+    background-color: transparent; /* Keep main-container transparent */
+    align-items: flex-start; /* Align items to the top */
+}
+
+/* New style for #canvas-and-prompt-container */
+#canvas-and-prompt-container {
+    display: flex;
+    flex-direction: column; /* Stack canvas and prompt vertically */
+    flex-grow: 1; /* Allow it to take available space */
+    gap: 20px; /* Space between canvas and prompt */
+}
+
+#controls-sidebar {
+    grid-area: sidebar;
+    display: flex;
+    flex-direction: column;
+    padding: 15px;
+    background: linear-gradient(to bottom right, #616280, #1f253b); /* Gradient background for panels */
+    border-radius: 15px; /* More rounded corners */
+    box-shadow: 8px 8px 16px #1a1e27, -8px -8px 16px #6a707a; /* Neumorphic shadow for dark theme */
+}
+
+#right-sidebar {
+    grid-area: right-sidebar;
+    display: flex;
+    flex-direction: column;
+    padding: 15px;
+    background: linear-gradient(to bottom right, #616280, #1f253b); /* Gradient background for panels */
+    border-radius: 15px; /* More rounded corners */
+    box-shadow: 8px 8px 16px #1a1e27, -8px -8px 16px #6a707a; /* Neumorphic shadow for dark theme */
+    gap: 15px; /* Space between control sections inside right sidebar */
+}
+
+#controls { /* This div wraps all control sections */
+    display: flex;
+    flex-direction: column;
+    gap: 15px; /* Space between control sections */
+}
+
+.control-section {
+    background: linear-gradient(to bottom right, #616280, #1f253b); /* Gradient background for sections */
+    border-radius: 12px; /* Rounded corners for sections */
+    box-shadow: inset 5px 5px 10px #1a1e27, inset -5px -5px 10px #6a707a; /* Inset shadow for "pressed" look */
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.control-section h3 {
+    color: #e0e0e0; /* Lighter text for headings on dark background */
+    margin-top: 0;
+    margin-bottom: 10px;
+    text-align: center;
+    font-size: 1.1em;
+}
+
+#canvas-area {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 600px; /* Ensure canvas area has a minimum height */
+    border-radius: 15px; /* Rounded corners */
+    width: 100%; /* Take full width of its parent */
+}
+
+.control-group {
+    display: flex;
+    flex-direction: column; /* Stack items vertically */
+    align-items: flex-start; /* Align items to the start (left) */
+    justify-content: flex-start;
+    gap: 5px; /* Reduced gap for closer label/dropdown */
+    width: 100%;
+}
+
+.control-group input[type="color"] {
+    width: 40px;
+    height: 30px;
+    padding: 0;
+    border-radius: 8px; /* More rounded */
+    box-shadow: inset 2px 2px 5px #1a1e27, inset -2px -2px 5px #6a707a; /* Inset shadow */
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    border: none; /* No border */
+    cursor: pointer;
+}
+
+.control-group input[type="color"]::-webkit-color-swatch-wrapper {
+    padding: 0;
+}
+
+.control-group input[type="color"]::-webkit-color-swatch {
+    border: none;
+    border-radius: 6px; /* Slightly less rounded than container */
+}
+
+/* Custom Dropdown Styling */
+.custom-dropdown {
+    position: relative;
+    flex-grow: 1;
+    width: 100%; /* Take full width of parent control-group */
+    background: linear-gradient(to bottom right, #616280, #1f253b);
+    color: #FFFFFF;
+    border-radius: 8px;
+    box-shadow: inset 2px 2px 5px #1a1e27, inset -2px -2px 5px #6a707a;
+    outline: none;
+    cursor: pointer;
+    user-select: none; /* Prevent text selection */
+}
+
+.dropdown-selected-value {
+    padding: 5px 8px;
+    padding-right: 25px; /* Space for arrow */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    position: relative;
+}
+
+.dropdown-selected-value::after {
+    content: '';
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%) rotate(45deg);
+    width: 8px;
+    height: 8px;
+    border-right: 2px solid #FFFFFF;
+    border-bottom: 2px solid #FFFFFF;
+    pointer-events: none; /* Allow clicks to pass through to parent */
+}
+
+.custom-dropdown.open .dropdown-selected-value::after {
+    transform: translateY(-50%) rotate(-135deg);
+}
+
+.dropdown-options {
+    display: none; /* Hidden by default */
+    position: absolute;
+    top: 100%; /* Position below selected value */
+    left: 0;
+    right: 0;
+    z-index: 10; /* Ensure it's above other content */
+    background: linear-gradient(to bottom right, #616280, #1f253b); /* Match dropdown header */
+    border-radius: 8px;
+    box-shadow: 5px 5px 10px #1a1e27, -5px -5px 10px #6a707a; /* Extruded shadow for opened list */
+    max-height: 200px; /* Limit height and enable scrolling */
+    overflow-y: auto;
+    border: 1px solid rgba(255, 255, 255, 0.1); /* Subtle border */
+    padding: 5px 0; /* Padding for options */
+}
+
+.custom-dropdown.open .dropdown-options {
+    display: block; /* Show when open */
+}
+
+.dropdown-option {
+    padding: 8px 15px;
+    color: #FFFFFF; /* White text */
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dropdown-option:hover {
+    background-color: rgba(255, 255, 255, 0.1); /* Subtle hover effect */
+}
+
+.dropdown-option.selected {
+    background-color: #4a90e2; /* Highlight selected option */
+}
+
+
+/* Native select and input[type="text"] styling (now only for inputs, selects will be custom) */
+.control-group input[type="text"] {
+    flex-grow: 1;
+    background: linear-gradient(to bottom right, #616280, #1f253b); /* Gradient background for inputs */
+    color: #FFFFFF; /* Changed to white text */
+    border: none; /* No hard border */
+    border-radius: 8px; /* Rounded corners */
+    padding: 5px 8px;
+    box-shadow: inset 2px 2px 5px #1a1e27, inset -2px -2px 5px #6a707a; /* Inset shadow */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    outline: none; /* Remove outline on focus */
+}
+
+
+.control-group input[type="color"] {
+    width: 40px;
+    height: 30px;
+    padding: 0;
+    border-radius: 8px; /* More rounded */
+    box-shadow: inset 2px 2px 5px #1a1e27, inset -2px -2px 5px #6a707a; /* Inset shadow */
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    border: none; /* No border */
+    cursor: pointer;
+}
+
+.control-group input[type="color"]::-webkit-color-swatch-wrapper {
+    padding: 0;
+}
+
+.control-group input[type="color"]::-webkit-color-swatch {
+    border: none;
+    border-radius: 6px; /* Slightly less rounded than container */
+}
+
+.control-group label {
+    font-weight: bold;
+    color: #e0e0e0 !important; /* Lighter text for labels */
+    width: 100%; /* Make label take full width */
+    text-align: left; /* Align label text to the left */
+    font-size: 0.9em; /* Smaller font size for labels */
+    margin-bottom: 5px; /* Space between label and dropdown */
+}
+
+/* Unified button styling */
+.control-section button,
+#z-controls button,
+#prompt-export-controls button { /* Updated selector */
+    text-decoration: none;
+    padding: 8px 12px;
+    font-family: sans-serif;
+    font-size: 0.9em;
+    color: #e0e0e0; /* Lighter text for buttons */
+    background: linear-gradient(to bottom right, #616280, #1f253b); /* Gradient background */
+    border-radius: 10px; /* More rounded */
+    border: none;
+    box-shadow: 5px 5px 10px #1a1e27, -5px -5px 10px #6a707a; /* Extruded shadow */
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    box-sizing: border-box;
+    width: 100%;
+    outline: none;
+    position: relative; /* For pseudo-element border */
+    overflow: hidden; /* Hide overflow of pseudo-element */
+}
+
+.control-section button:hover,
+#z-controls button:hover,
+#prompt-export-controls button:hover { /* Updated selector */
+    box-shadow: 3px 3px 6px #1a1e27, -3px -3px 6px #6a707a; /* Subtle hover shadow */
+}
+
+.control-section button:active,
+#z-controls button:active,
+#prompt-export-controls button:active { /* Updated selector */
+    box-shadow: inset 3px 3px 6px #1a1e27, inset -3px -3px 6px #6a707a; /* Pressed effect */
+}
+
+/* Pseudo-element for gradient border */
+.control-section button::before,
+#z-controls button::before,
+#prompt-export-controls button::before { /* Updated selector */
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: inherit;
+    padding: 2px; /* Border thickness */
+    background: linear-gradient(to bottom right, #cccccc, #000000); /* Grey to black gradient */
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    z-index: -1; /* Place behind content */
+}
+
+
+#camera-angle-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px; /* Increased gap for better spacing */
+    justify-content: center; /* Center buttons within their container */
+}
+
+.camera-angle-btn {
+    flex: 1 1 calc(50% - 10px); /* Two buttons per row, considering new gap */
+    min-width: 0;
+    padding: 10px 8px; /* Larger padding for better touch targets */
+    font-size: 0.8em;
+    border-radius: 10px; /* More rounded */
+    background: linear-gradient(to bottom right, #616280, #1f253b); /* Gradient background */
+    border: none;
+    color: #e0e0e0; /* Lighter text */
+    box-shadow: 5px 5px 10px #1a1e27, -5px -5px 10px #6a707a; /* Extruded shadow */
+}
+
+.camera-angle-btn.selected {
+    background-color: #4a90e2; /* Blue accent for selected */
+    color: #FFFFFF; /* White text for selected */
+    box-shadow: inset 3px 3px 6px #357bd8, inset -3px -3px 6px #5e9cf6; /* Pressed effect with blue glow */
+}
+
+.camera-angle-btn:hover {
+    box-shadow: 3px 3px 6px #1a1e27, -3px -3px 6px #6a707a; /* Subtle hover effect */
+}
+
+/* Pseudo-element for gradient border for camera buttons */
+.camera-angle-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: inherit;
+    padding: 2px; /* Border thickness */
+    background: linear-gradient(to bottom right, #cccccc, #000000); /* Grey to black gradient */
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    z-index: -1; /* Place behind content */
+}
+
+
+#z-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.control-section button:disabled,
+#z-controls button:disabled,
+#prompt-export-controls button:disabled { /* Updated selector */
+    background-color: #f0f0f0; /* Lighter disabled background */
+    color: #aaa; /* Faded text */
+    box-shadow: inset 2px 2px 5px #d1d1d1, inset -2px -2px 5px #ffffff; /* Inset shadow for disabled */
+    cursor: not-allowed;
+}
+
+#svg-canvas {
+    border: none; /* No border */
+    background-color: #ebf0f7; /* Lighter background for canvas area */
+    border-radius: 15px; /* Rounded corners */
+    box-shadow: 8px 8px 16px #1a1e27, -8px -8px 16px #6a707a;/* Neumorphic shadow */
+}
+
+#prompt-export-controls {
+    padding: 15px;
+    background: linear-gradient(to bottom right, #616280, #1f253b); /* Gradient background for panels */
+    border-radius: 15px; /* Rounded corners */
+    box-shadow: 8px 8px 16px #1a1e27, -8px -8px 16px #6a707a; /* Neumorphic shadow for dark theme */
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%; /* Take full width of its parent */
+}
+
+#prompt-export-controls .control-group {
+    display: flex;
+    flex-direction: row; /* Arrange buttons horizontally */
+    gap: 10px; /* Space between buttons */
+    width: 100%;
+}
+
+#prompt-export-controls button {
+    flex: 1; /* Distribute space evenly among buttons */
+}
+
+#prompt-display {
+    width: 100%;
+    height: 150px;
+    white-space: pre-wrap;
+    background: linear-gradient(to bottom right, #616280, #1f253b); /* Gradient background for prompt display */
+    padding: 15px;
+    border-radius: 10px; /* Rounded corners */
+    border: none; /* No hard border */
+    box-shadow: inset 2px 2px 5px #1a1e27, inset -2px -2px 5px #6a707a; /* Inset shadow */
+    overflow-x: auto;
+    font-size: 15px;
+    line-height: 1.6;
+    color: #e0e0e0; /* Lighter text */
+    box-sizing: border-box;
+    outline: none; /* Remove outline on focus */
+}
+
+/* Styles pour les poignées de redimensionnement */
+.resize-handle {
+    cursor: nwse-resize;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out;
+    fill: #4a90e2; /* Blue handle */
+    box-shadow: 2px 2px 4px rgba(0,0,0,0.3); /* Subtle shadow */
+}
+
+/* Afficher les poignées quand la forme est survolée ou sélectionnée */
+.shape-group.selected .resize-handle {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Style for selected freeform points */
+.freeform-point-visual.selected-point {
+    fill: #00ff00; /* Green color for selected point */
+}
+
+.shape-group {
+    cursor: grab;
+}
+
+.shape-group:active {
+    cursor: grabbing;
+}
