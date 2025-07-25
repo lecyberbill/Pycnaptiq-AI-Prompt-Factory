@@ -2,6 +2,15 @@
 
 Pycnaptiq-AI Shap Prompteur is a web-based tool designed to help users create visual compositions and generate descriptive prompts for them. This tool allows users to add various shapes to a canvas, manipulate their properties, and then export a detailed text prompt that describes the scene, suitable for use with AI image generation models.
 
+
+<img width="1431" height="1044" alt="image" src="https://github.com/user-attachments/assets/0e0db20b-10f8-4a2d-9c29-27676217f41b" />
+
+<img width="1479" height="775" alt="image" src="https://github.com/user-attachments/assets/bd8fbe30-42ce-4d0b-8265-ed609b9c13e7" />
+
+
+
+
+
 ## Features
 
 -   **Shape Creation:** Add rectangles, circles, ellipses, triangles, and freeform shapes to the canvas.
