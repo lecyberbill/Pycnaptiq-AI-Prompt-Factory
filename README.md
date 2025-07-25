@@ -18,7 +18,7 @@ Pycnaptiq-AI Shap Prompteur is a web-based tool designed to help users create vi
 -   **Z-Index Control:** Adjust the layering of shapes (bring to front, send to back, etc.).
 -   **Prompt Generation:** Automatically generate a natural-language prompt describing the scene, including background, camera angle, lighting, art style, and detailed descriptions of each shape's size, color, label, and position.
 -   **Export Options:** Export the generated prompt, save the canvas as an SVG file, or export it as a PNG image.
--   **Freeform Drawing:** Create custom freeform paths with editable points.
+-   **Freeform Drawing:** Create custom freeform paths with editable points and convert segments to Bezier curves with adjustable control handles.
 
 ## Getting Started
 
@@ -80,6 +80,8 @@ To run Shap Prompteur locally, you need Python installed on your system to serve
     -   Click on the canvas to add points to your freeform path.
     -   Click "Close Path" to finalize the shape.
     -   Double-click an existing freeform shape to enter edit mode, where you can move individual points.
+    -   **Convert to Bezier:** While in freeform edit mode, select a point on the path and click "Convert to Bezier". The line segment immediately following the selected point will be converted into a cubic Bezier curve.
+    -   **Manipulate Bezier Curves:** Once a segment is converted to a Bezier curve, yellow control handles will appear. You can drag these handles to adjust the curvature. The tangent lines will help visualize the curve's direction.
 
 4.  **Generate Prompt:**
     -   Adjust the background category, background idea, camera angle, lighting/mood, and art style using the respective dropdowns and buttons.
