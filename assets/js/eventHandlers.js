@@ -97,30 +97,35 @@ export function setupEventListeners() {
     svgCanvas.addEventListener('freeformPointClick', handleFreeformPointClick);
     svgCanvas.addEventListener('freeformPointsCleared', resetSelectedFreeformPoint);
 
-    // Handle initial mousedown on canvas for shape creation or deselection
-    svgCanvas.addEventListener('mousedown', (e) => {
-        if (shapeTypeDropdownValue === 'freeform') {
-            handleFreeformMouseDown(e);
-        } else if (e.target === svgCanvas) {
-            // Deselect shape if clicking on empty canvas
+    // Handle global mousedown for shape deselection
+    document.addEventListener('mousedown', (e) => {
+        const clickedOnShapeGroup = e.target.closest('.shape-group');
+        const clickedOnControlsSidebar = e.target.closest('#controls-sidebar');
+        const clickedOnRightSidebar = e.target.closest('#right-sidebar');
+        const clickedOnPromptArea = e.target.closest('#prompt-export-controls');
+        const clickedOnCustomDropdown = e.target.closest('.custom-dropdown'); // Don't deselect if clicking on dropdowns
+
+        // Deselect if currently selected shape AND click was not on a shape group,
+        // AND not on any control panel/dropdown, AND not on the SVG canvas itself (unless in freeform draw mode)
+        if (SvgManager.getSelectedShapeGroup() && 
+            !clickedOnShapeGroup && 
+            !clickedOnControlsSidebar && 
+            !clickedOnRightSidebar && 
+            !clickedOnPromptArea &&
+            !clickedOnCustomDropdown &&
+            !(shapeTypeDropdownValue === 'freeform' && e.target === svgCanvas)) // Allow clicks on canvas in freeform mode
+        {
             SvgManager.setSelectedShapeGroup(null);
             updateAllButtonStates();
         }
     });
 
-    // Add contextmenu listener for right-click on shapes to edit label
-    svgCanvas.addEventListener('contextmenu', (e) => {
-        const targetGroup = e.target.closest('.shape-group');
-        if (targetGroup) {
-            e.preventDefault(); // Prevent default context menu
-            const textElement = targetGroup._labelText;
-            if (textElement) {
-                const currentLabel = textElement.textContent.trim();
-                const newLabel = prompt('Enter new label for the shape:', currentLabel === '\u00A0' ? '' : currentLabel);
-                if (newLabel !== null) { // If user didn't cancel
-                    SvgManager.updateShapeText(targetGroup, newLabel.trim() === '' ? '\u00A0' : newLabel);
-                }
-            }
+    // Keep the specific mousedown on svgCanvas for freeform drawing initiation
+    svgCanvas.addEventListener('mousedown', (e) => {
+        // This listener only initiates freeform drawing.
+        // Deselection is handled by the global document mousedown listener.
+        if (shapeTypeDropdownValue === 'freeform') {
+            handleFreeformMouseDown(e);
         }
     });
 
@@ -1124,6 +1129,14 @@ document.addEventListener('dblclick', (e) => {
                 input.blur();
             }
         });
+
+        input.addEventListener('keydown', (e) => {
+            // Stop propagation for Delete and Backspace keys when input is active
+            if (e.key === 'Delete' || e.key === 'Backspace') {
+                e.stopPropagation();
+            }
+        });
+
         activeTextEditorForeignObject = foreignObject; // Set the global variable
     } else if (e.target.closest('.shape-group[data-shape-type="freeform"]')) {
         e.stopPropagation(); // Prevent other dblclick handlers
