@@ -2,7 +2,9 @@
 
 Pycnaptiq-AI Prompt Factory is a web-based tool designed to help users create visual compositions and generate descriptive prompts for them. This tool allows users to add various shapes to a canvas, manipulate their properties, and then export a detailed text prompt that describes the scene, suitable for use with AI image generation models.
 
+<img width="1430" height="952" alt="image" src="https://github.com/user-attachments/assets/dc5b3847-d244-43bb-ac36-dea349691e8d" />
 
+<img width="1470" height="953" alt="image" src="https://github.com/user-attachments/assets/3b8ef9c9-1b9c-4271-9a00-81b6f4a8e836" />
 
 
 ## Features
