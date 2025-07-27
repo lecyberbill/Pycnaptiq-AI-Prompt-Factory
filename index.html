@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pycnaptiq-AI Shap Prompteur</title>
+    <title>Pycnaptiq-AI Prompt Factory</title>
     <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
     <div id="main-container">
         <div id="controls-sidebar">
-            <h1>Pycnaptiq-AI Shap Prompteur</h1>
+            <h1>Pycnaptiq-AI Prompt Factory</h1>
             <div id="controls">
                 <!-- Shape Management -->
                 <div id="shape-management" class="control-section">
@@ -25,7 +25,6 @@
                             <div class="dropdown-option" data-value="freeform">Freeform</div>
                         </div>
                     </div>
-                        <input type="color" id="shape-color" value="#ff0000">
                     </div>
                     <div class="control-group">
                         <input type="text" id="shape-label" placeholder="Label">
@@ -38,6 +37,10 @@
                     </div>
                     <div class="control-group">
                         <button id="clear-canvas">Clear Canvas</button>
+                    </div>
+                    <div class="control-group">
+                        <button id="undo-btn" disabled>Undo</button>
+                        <button id="redo-btn" disabled>Redo</button>
                     </div>
                 </div>
 
@@ -56,15 +59,20 @@
                             <div class="dropdown-selected-value"></div>
                             <div class="dropdown-options"></div>
                         </div>
-                        <div class="control-group">
-                            <button id="apply-background-btn">Apply Background Idea</button>
-                        </div>
                     </div>
                 </div>
 
-                <!-- Stroke Color Settings -->
-                <div id="stroke-settings" class="control-section">
-                    <h3>Stroke Settings</h3>
+                <!-- Color Settings -->
+                <div id="color-settings" class="control-section">
+                    <h3>Color Settings</h3>
+                    <div class="control-group">
+                        <label for="shape-color">Fill Color:</label>
+                        <input type="color" id="shape-color" value="#ff0000">
+                    </div>
+                    <div class="control-group">
+                        <label for="no-fill-color">No Fill Color (Flesh Tone):</label>
+                        <input type="checkbox" id="no-fill-color">
+                    </div>
                     <div class="control-group">
                         <label for="stroke-color">Stroke Color:</label>
                         <input type="color" id="stroke-color" value="#000000">
@@ -97,6 +105,7 @@
                     <button id="export-prompt">Generate Prompt</button>
                     <button id="export-png">Export PNG</button>
                     <button id="save-svg">Save SVG</button>
+                    <button id="copy-prompt-btn">Copy Prompt</button>
                 </div>
                 <textarea id="prompt-display" readonly></textarea>
             </div>
@@ -150,10 +159,90 @@
                         <button id="done-editing-freeform-btn">Done Editing Freeform</button>
                     </div>
                 </div>
+
+                <!-- Object Identity Card - Moved into Lighting & Style Settings -->
+                <div id="object-id-card" class="control-section" style="display: none;">
+                    <div class="panel-header">
+                        <h2>Object Identity Card</h2>
+                        <button id="close-id-card">X</button>
+                    </div>
+                    <div class="panel-content">
+                        <div class="control-section">
+                            <h3>Emotions</h3>
+                            <div class="custom-dropdown" id="emotion-dropdown">
+                                <div class="dropdown-selected-value">Select Emotion</div>
+                                <div class="dropdown-options">
+                                    <!-- Options will be populated by JS -->
+                                </div>
+                            </div>
+                        </div>
+                        <div class="control-section">
+                            <h3>Actions</h3>
+                            <div class="custom-dropdown" id="action-dropdown">
+                                <div class="dropdown-selected-value">Select Action</div>
+                                <div class="dropdown-options">
+                                    <!-- Options will be populated by JS -->
+                                </div>
+                            </div>
+                        </div>
+                        <!-- New sections for detailed attributes -->
+                        <div class="control-section">
+                            <h3>Eye Color</h3>
+                            <div class="custom-dropdown" id="eye-color-dropdown">
+                                <div class="dropdown-selected-value">Select Eye Color</div>
+                                <div class="dropdown-options">
+                                    <!-- Options will be populated by JS -->
+                                </div>
+                            </div>
+                        </div>
+                        <div class="control-section">
+                            <h3>Clothing</h3>
+                            <div class="custom-dropdown" id="clothing-dropdown">
+                                <div class="dropdown-selected-value">Select Clothing</div>
+                                <div class="dropdown-options">
+                                    <!-- Options will be populated by JS -->
+                                </div>
+                            </div>
+                        </div>
+                        <div class="control-section">
+                            <h3>Hair Style</h3>
+                            <div class="custom-dropdown" id="hair-style-dropdown">
+                                <div class="dropdown-selected-value">Select Hair Style</div>
+                                <div class="dropdown-options">
+                                    <!-- Options will be populated by JS -->
+                                </div>
+                            </div>
+                        </div>
+                        <div class="control-section">
+                            <h3>Hair Color</h3>
+                            <div class="custom-dropdown" id="hair-color-dropdown">
+                                <div class="dropdown-selected-value">Select Hair Color</div>
+                                <div class="dropdown-options">
+                                    <!-- Options will be populated by JS -->
+                                </div>
+                            </div>
+                        </div>
+                        <div class="control-section">
+                            <h3>Prompt Customization</h3>
+                            <div class="control-group">
+                                <label for="prompt-prefix-text">Text Before Shape Description:</label>
+                                <textarea id="prompt-prefix-text" rows="3" placeholder="Add text to appear before the shape description in the prompt."></textarea>
+                            </div>
+                            <div class="control-group">
+                                <label for="prompt-suffix-text">Text After Shape Description:</label>
+                                <textarea id="prompt-suffix-text" rows="3" placeholder="Add text to appear after the shape description in the prompt."></textarea>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <button id="save-id-card-attributes">Save Attributes</button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
+    <script type="module" src="assets/js/historyManager.js"></script>
     <script type="module" src="assets/js/main.js"></script>
 </body>
 </html>

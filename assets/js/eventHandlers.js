@@ -4,11 +4,15 @@ import * as SvgManager from './svgManager.js';
 import * as DragAndResize from './dragAndResize.js';
 import { getClosestColorName } from './colorUtils.js';
 import * as BackgroundManager from './backgroundManager.js';
+import * as DataManager from './dataManager.js'; // Import the data manager
+
+let historyManager; // Will be initialized in setupEventListeners
 
 let colorSelect, labelText, createShapeBtn, deleteShapeBtn, clearCanvasBtn, exportPromptBtn, promptDisplay, exportPngBtn, saveSvgBtn;
 let bringToFrontBtn, sendToBackBtn, bringForwardBtn, sendBackwardBtn;
-let applyBackgroundBtn; // No longer directly referencing background select elements
-let strokeColorInput, applyStrokeToAllBtn; // New variables for stroke color input and button
+let undoBtn, redoBtn; // New variables for undo/redo buttons
+let strokeColorInput, applyStrokeToAllBtn, copyPromptBtn; // New variables for stroke color input, button, and copy prompt button
+let noFillColorCheckbox; // Declared globally
 
 let shapeTypeDropdownValue = 'rect'; // Store the selected shape type
 let backgroundCategoryDropdownValue = null; // Store selected background category
@@ -33,14 +37,20 @@ let currentFreeformPathData = []; // Stores path commands {cmd: 'M'/'L'/'C', x, 
 let currentFreeformGroup = null;
 let currentFreeformPathElement = null; // The actual SVG path element
 
-// Function to handle "Apply Background" button click
-const handleApplyBackground = () => {
-    // Value is already updated by custom dropdown's onSelectCallback
-    handleExportPrompt(); // Re-generate prompt with new background
-};
+// Declare dropdown instances globally so handleIdCardIconClick can access them
+let emotionDropdownInstance;
+let actionDropdownInstance;
+let eyeColorDropdownInstance;
+let clothingDropdownInstance;
+let hairStyleDropdownInstance;
+let hairColorDropdownInstance;
 
-export function setupEventListeners() {
-    colorSelect = document.getElementById('shape-color');
+let promptPrefixTextarea; // New variable for prompt prefix textarea
+let promptSuffixTextarea; // New variable for prompt suffix textarea
+
+export function setupEventListeners(historyMgr) {
+    historyManager = historyMgr; // Initialize the module-level historyManager
+
     labelText = document.getElementById('shape-label');
     createShapeBtn = document.getElementById('create-shape');
     deleteShapeBtn = document.getElementById('delete-shape');
@@ -49,25 +59,53 @@ export function setupEventListeners() {
     promptDisplay = document.getElementById('prompt-display');
     exportPngBtn = document.getElementById('export-png');
     saveSvgBtn = document.getElementById('save-svg');
+    copyPromptBtn = document.getElementById('copy-prompt-btn'); // Initialize copy prompt button
     bringToFrontBtn = document.getElementById('bring-to-front-btn');
     sendToBackBtn = document.getElementById('send-to-back-btn');
     bringForwardBtn = document.getElementById('bring-forward-btn');
     sendBackwardBtn = document.getElementById('send-backward-btn');
+    undoBtn = document.getElementById('undo-btn'); // Initialize undo button
+    redoBtn = document.getElementById('redo-btn'); // Initialize redo button
     const svgCanvas = SvgManager.getSvgCanvas();
     freeformToolsDrawer = document.getElementById('freeform-tools-drawer'); // Initialize the drawer variable
-    strokeColorInput = document.getElementById('stroke-color'); // Initialize stroke color input
     applyStrokeToAllBtn = document.getElementById('apply-stroke-to-all'); // Initialize apply stroke button
+    const objectIdCard = document.getElementById('object-id-card');
+    const closeIdCardBtn = objectIdCard.querySelector('#close-id-card'); // Corrected selector
+    const objectIdCardHeader = objectIdCard.querySelector('.panel-header');
 
+    colorSelect = document.getElementById('shape-color'); // Initialized here
+    colorSelect.addEventListener('input', handleColorChange);
+
+    noFillColorCheckbox = document.getElementById('no-fill-color'); // Assign to the global variable
+    noFillColorCheckbox.addEventListener('change', handleNoFillColorChange); // Add event listener
+
+    strokeColorInput = document.getElementById('stroke-color'); // Initialized here
+    strokeColorInput.addEventListener('input', handleStrokeColorChange);
+    applyStrokeToAllBtn.addEventListener('click', handleApplyStrokeToAll);
+
+    // Removed isDraggingIdCard variables and related event listeners as the panel is no longer floating freely.
+    // The panel is now embedded in the right sidebar.
     createShapeBtn.addEventListener('click', handleAddShape);
     deleteShapeBtn.addEventListener('click', handleDeleteShape);
     clearCanvasBtn.addEventListener('click', handleResetCanvas);
     exportPromptBtn.addEventListener('click', handleExportPrompt);
     exportPngBtn.addEventListener('click', handleExportPng);
     saveSvgBtn.addEventListener('click', handleSaveSvg);
+    copyPromptBtn.addEventListener('click', handleCopyPrompt); // Add event listener for copy prompt button
     bringToFrontBtn.addEventListener('click', () => handleZIndexChange(SvgManager.bringToFront));
     sendToBackBtn.addEventListener('click', () => handleZIndexChange(SvgManager.sendToBack));
     bringForwardBtn.addEventListener('click', () => handleZIndexChange(SvgManager.bringForward));
     sendBackwardBtn.addEventListener('click', () => handleZIndexChange(SvgManager.sendBackward));
+    undoBtn.addEventListener('click', handleUndo);
+    redoBtn.addEventListener('click', handleRedo);
+    closeIdCardBtn.addEventListener('click', () => objectIdCard.style.display = 'none'); // Hide when close button is clicked
+
+    // Initialize new textareas
+    promptPrefixTextarea = document.getElementById('prompt-prefix-text');
+    promptSuffixTextarea = document.getElementById('prompt-suffix-text');
+
+    const saveIdCardAttributesBtn = document.getElementById('save-id-card-attributes');
+    saveIdCardAttributesBtn.addEventListener('click', handleSaveIdCardAttributes);
 
     // Global event listeners for drag/resize and freeform drawing
     svgCanvas.addEventListener('mousemove', (e) => {
@@ -82,7 +120,10 @@ export function setupEventListeners() {
         if (isDrawingFreeform) { // If currently drawing freeform, handle freeform specific mouseup
             handleFreeformMouseUp(e);
         } else { // Otherwise, allow general drag/resize (for all shapes, including freeform when not drawing)
-            DragAndResize.endDragOrResize();
+            if (DragAndResize.endDragOrResize()) {
+                historyManager.pushState(SvgManager.getCanvasStateAsData());
+                updateAllButtonStates(); // Update undo/redo buttons state
+            }
         }
     });
     
@@ -90,7 +131,10 @@ export function setupEventListeners() {
         if (isDrawingFreeform) { // If currently drawing freeform, treat as mouse up
             handleFreeformMouseUp(e);
         } else { // Otherwise, allow general drag/resize (for all shapes, including freeform when not drawing)
-            DragAndResize.endDragOrResize();
+            if (DragAndResize.endDragOrResize()) {
+                historyManager.pushState(SvgManager.getCanvasStateAsData());
+                updateAllButtonStates(); // Update undo/redo buttons state
+            }
         }
     });
 
@@ -104,15 +148,18 @@ export function setupEventListeners() {
         const clickedOnRightSidebar = e.target.closest('#right-sidebar');
         const clickedOnPromptArea = e.target.closest('#prompt-export-controls');
         const clickedOnCustomDropdown = e.target.closest('.custom-dropdown'); // Don't deselect if clicking on dropdowns
+        const clickedOnObjectIdCard = e.target.closest('#object-id-card'); // Check if click was on the object ID card
 
         // Deselect if currently selected shape AND click was not on a shape group,
-        // AND not on any control panel/dropdown, AND not on the SVG canvas itself (unless in freeform draw mode)
+        // AND not on any control panel/dropdown, AND not on the SVG canvas itself (unless in freeform draw mode),
+        // AND not on the object ID card.
         if (SvgManager.getSelectedShapeGroup() && 
             !clickedOnShapeGroup && 
             !clickedOnControlsSidebar && 
             !clickedOnRightSidebar && 
             !clickedOnPromptArea &&
             !clickedOnCustomDropdown &&
+            !clickedOnObjectIdCard && // New condition: do not deselect if clicking on the ID card
             !(shapeTypeDropdownValue === 'freeform' && e.target === svgCanvas)) // Allow clicks on canvas in freeform mode
         {
             SvgManager.setSelectedShapeGroup(null);
@@ -146,25 +193,13 @@ export function setupEventListeners() {
     });
 
     // Observer les changements sur la sélection pour activer/désactiver les boutons
-    const observer = new MutationObserver(() => {
+    observer = new MutationObserver(() => {
         updateAllButtonStates();
     });
     observer.observe(svgCanvas, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
 
     // Initialisation de l'état des boutons
     updateAllButtonStates();
-
-    // Event listener for color picker
-    colorSelect.addEventListener('input', handleColorChange);
-
-    applyBackgroundBtn = document.getElementById('apply-background-btn');
-    applyBackgroundBtn.addEventListener('click', handleApplyBackground);
-
-    strokeColorInput = document.getElementById('stroke-color');
-    applyStrokeToAllBtn = document.getElementById('apply-stroke-to-all');
-    strokeColorInput.addEventListener('input', handleStrokeColorChange);
-    applyStrokeToAllBtn.addEventListener('click', handleApplyStrokeToAll);
-
 
     // Camera Angle Controls
     const cameraAngleButtonsContainer = document.getElementById('camera-angle-buttons');
@@ -228,6 +263,7 @@ export function setupEventListeners() {
                 selectedBackgroundIdea = firstIdea.name;
                 selectedBackgroundGradientColors = firstIdea.gradient_colors;
                 SvgManager.setCanvasBackgroundGradient(selectedBackgroundGradientColors); // Apply gradient
+                historyManager.pushState(SvgManager.getCanvasStateAsData()); // Save state after background change
                 handleExportPrompt(); // Re-generate prompt with new background
             } else {
                 selectedBackgroundIdea = null;
@@ -238,25 +274,6 @@ export function setupEventListeners() {
         }
     ); // Correctly closing the setupCustomDropdown call
 
-    // Stroke color functions
-    function handleStrokeColorChange(e) {
-    const newColor = e.target.value;
-    const selectedGroup = SvgManager.getSelectedShapeGroup();
-    if (selectedGroup) {
-        SvgManager.updateShapeStrokeColor(selectedGroup, newColor);
-        handleExportPrompt();
-    }
-}
-
-function handleApplyStrokeToAll() {
-    const strokeColor = strokeColorInput.value;
-    const svgCanvas = SvgManager.getSvgCanvas();
-    const allShapeGroups = svgCanvas.querySelectorAll('.shape-group');
-    allShapeGroups.forEach(group => {
-        SvgManager.updateShapeStrokeColor(group, strokeColor);
-    });
-    handleExportPrompt();
-}
     // Initialize backgroundCategoryDropdownValue after setup
     backgroundCategoryDropdownValue = backgroundCategoryDropdown.getSelectedValue();
 
@@ -267,6 +284,7 @@ function handleApplyStrokeToAll() {
         selectedBackgroundIdea = selectedIdeaObject.name; // Update selectedBackgroundIdea with the name
         selectedBackgroundGradientColors = selectedIdeaObject.gradient_colors; // Store colors
         SvgManager.setCanvasBackgroundGradient(selectedBackgroundGradientColors); // Apply gradient
+        historyManager.pushState(SvgManager.getCanvasStateAsData()); // Save state after background change
         handleExportPrompt();
     });
     // Set initial values based on the first option after setup
@@ -275,6 +293,10 @@ function handleApplyStrokeToAll() {
         selectedBackgroundGradientColors = initialBackgroundIdeas[0].gradient_colors;
         SvgManager.setCanvasBackgroundGradient(selectedBackgroundGradientColors); // Apply initial gradient
     }
+
+    // Push the true initial state to history after all setup is complete
+    historyManager.pushState(SvgManager.getCanvasStateAsData());
+    updateAllButtonStates(); // Update buttons with initial history state
 
     // Lighting & Mood
     const lightingMoodDropdown = setupCustomDropdown('lighting-mood-dropdown',
@@ -296,6 +318,85 @@ function handleApplyStrokeToAll() {
     );
     selectedArtStyle = artStyleDropdown.getSelectedValue();
 
+    // Emotions and Actions Dropdowns
+    emotionDropdownInstance = setupCustomDropdown('emotion-dropdown',
+        DataManager.getEmotions().map(emotion => ({ name: emotion.name, value: emotion.prompt_phrase })),
+        (selectedObject) => {
+            const selectedGroup = SvgManager.getSelectedShapeGroup();
+            if (selectedGroup) {
+                historyManager.pushState(SvgManager.getCanvasStateAsData());
+                selectedGroup.setAttribute('data-emotion', selectedObject.value);
+                handleExportPrompt();
+            }
+        },
+        true // Include "Select Emotion" option
+    );
+
+    actionDropdownInstance = setupCustomDropdown('action-dropdown',
+        DataManager.getActions().map(action => ({ name: action.name, value: action.prompt_phrase })),
+        (selectedObject) => {
+            const selectedGroup = SvgManager.getSelectedShapeGroup();
+            if (selectedGroup) {
+                historyManager.pushState(SvgManager.getCanvasStateAsData());
+                selectedGroup.setAttribute('data-action', selectedObject.value);
+                handleExportPrompt();
+            }
+        },
+        true // Include "Select Action" option
+    );
+
+    // New dropdowns for detailed attributes
+    eyeColorDropdownInstance = setupCustomDropdown('eye-color-dropdown',
+        DataManager.getEyeColors().map(color => ({ name: color.name, value: color.prompt_phrase })),
+        (selectedObject) => {
+            const selectedGroup = SvgManager.getSelectedShapeGroup();
+            if (selectedGroup) {
+                historyManager.pushState(SvgManager.getCanvasStateAsData());
+                selectedGroup.setAttribute('data-eye-color', selectedObject.value);
+                handleExportPrompt();
+            }
+        },
+        true // Include "Select Eye Color" option
+    );
+
+    clothingDropdownInstance = setupCustomDropdown('clothing-dropdown',
+        DataManager.getClothing().map(item => ({ name: item.name, value: item.prompt_phrase })),
+        (selectedObject) => {
+            const selectedGroup = SvgManager.getSelectedShapeGroup();
+            if (selectedGroup) {
+                historyManager.pushState(SvgManager.getCanvasStateAsData());
+                selectedGroup.setAttribute('data-clothing', selectedObject.value);
+                handleExportPrompt();
+            }
+        },
+        true // Include "Select Clothing" option
+    );
+
+    hairStyleDropdownInstance = setupCustomDropdown('hair-style-dropdown',
+        DataManager.getHairStyles().map(style => ({ name: style.name, value: style.prompt_phrase })),
+        (selectedObject) => {
+            const selectedGroup = SvgManager.getSelectedShapeGroup();
+            if (selectedGroup) {
+                historyManager.pushState(SvgManager.getCanvasStateAsData());
+                selectedGroup.setAttribute('data-hair-style', selectedObject.value);
+                handleExportPrompt();
+            }
+        },
+        true // Include "Select Hair Style" option
+    );
+
+    hairColorDropdownInstance = setupCustomDropdown('hair-color-dropdown',
+        DataManager.getHairColors().map(color => ({ name: color.name, value: color.prompt_phrase })),
+        (selectedObject) => {
+            const selectedGroup = SvgManager.getSelectedShapeGroup();
+            if (selectedGroup) {
+                historyManager.pushState(SvgManager.getCanvasStateAsData());
+                selectedGroup.setAttribute('data-hair-color', selectedObject.value);
+                handleExportPrompt();
+            }
+        },
+        true // Include "Select Hair Color" option
+    );
 
     // Close dropdowns when clicking outside
     document.addEventListener('click', (e) => {
@@ -306,15 +407,27 @@ function handleApplyStrokeToAll() {
         });
     });
 
-
-
     // Add keyboard shortcut for deleting selected shape
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Delete' || e.key === 'Backspace') { // 'Delete' key or 'Backspace'
+        // Don't trigger shortcuts if user is typing in an input field
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+            return;
+        }
+
+        if (e.ctrlKey && e.key.toLowerCase() === 'z') {
+            e.preventDefault();
+            handleUndo();
+        } else if (e.ctrlKey && e.key.toLowerCase() === 'y') {
+            e.preventDefault();
+            handleRedo();
+        } else if (e.key === 'Delete' || e.key === 'Backspace') { // 'Delete' key or 'Backspace'
+            e.preventDefault();
             handleDeleteShape();
         } else if (e.ctrlKey && e.key === 'c') { // Ctrl+C for copy
+            e.preventDefault();
             handleCopyShape();
         } else if (e.ctrlKey && e.key === 'v') { // Ctrl+V for paste
+            e.preventDefault();
             handlePasteShape();
         }
     });
@@ -333,9 +446,8 @@ function handleAddPointBtn() {
     if (shapeTypeDropdownValue === 'freeform') {
         const selected = SvgManager.getSelectedShapeGroup();
         if (selected && selected.getAttribute('data-shape-type') === 'freeform' && !isDrawingFreeform) {
-            // If a freeform shape is selected and we are in edit mode (not drawing)
-            // Re-enter drawing mode to add points to the selected path
-            isDrawingFreeform = true;
+            // If a freeform shape is already selected, enter edit mode for it
+            isDrawingFreeform = false; // Not drawing, but editing
             currentFreeformGroup = selected;
             currentFreeformPathElement = selected._shapeBody;
             currentFreeformPathData = SvgManager.getFreeformPathData(currentFreeformPathElement); // Load current path data
@@ -353,6 +465,62 @@ function handleAddPointBtn() {
             console.log("Add Point button clicked. Ready to draw new freeform path.");
         }
         updateAllButtonStates();
+        historyManager.pushState(SvgManager.getCanvasStateAsData());
+    }
+}
+
+let observer; // Declare observer globally
+
+function handleUndo() {
+    const prevState = historyManager.undo();
+    
+    // Store the ID of the currently selected shape before any changes
+    const currentSelectedShape = SvgManager.getSelectedShapeGroup();
+    const selectedShapeId = currentSelectedShape ? currentSelectedShape.id : null;
+
+    observer.disconnect(); // Disconnect observer to prevent mutation events during restoration
+
+    if (prevState) {
+        SvgManager.restoreCanvasState(prevState);
+    } else {
+        // If prevState is null, it means we've reached the beginning of history.
+        // The desired state is an empty canvas.
+        SvgManager.clearCanvas();
+    }
+    
+    observer.observe(SvgManager.getSvgCanvas(), { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] }); // Reconnect observer
+
+    // After restoration, try to re-select the previously selected shape if it still exists
+    let reselectedShape = null;
+    if (selectedShapeId) {
+        reselectedShape = document.getElementById(selectedShapeId);
+    }
+    SvgManager.setSelectedShapeGroup(reselectedShape); // This will call updateShapeAppearance
+
+    updateAllButtonStates();
+    handleExportPrompt(); // Update prompt after state change
+}
+
+function handleRedo() {
+    const nextState = historyManager.redo();
+    if (nextState) {
+        // Store the ID of the currently selected shape, if any
+        const currentSelectedShape = SvgManager.getSelectedShapeGroup();
+        const selectedShapeId = currentSelectedShape ? currentSelectedShape.id : null;
+
+        observer.disconnect(); // Disconnect observer
+        SvgManager.restoreCanvasState(nextState);
+        observer.observe(SvgManager.getSvgCanvas(), { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] }); // Reconnect observer
+        
+        // After restoration, try to re-select the previously selected shape
+        let reselectedShape = null;
+        if (selectedShapeId) {
+            reselectedShape = document.getElementById(selectedShapeId);
+        }
+        SvgManager.setSelectedShapeGroup(reselectedShape); // This will call updateShapeAppearance if a shape is selected
+
+        updateAllButtonStates();
+        handleExportPrompt(); // Update prompt after state change
     }
 }
 
@@ -404,34 +572,26 @@ function handleConvertToBezierBtn() {
 }
 
 function handleToggleEditModeBtn() {
-    // This button should toggle between "drawing" (adding points) and "editing" (moving points)
     if (shapeTypeDropdownValue === 'freeform') {
         isDrawingFreeform = !isDrawingFreeform;
 
         if (isDrawingFreeform) {
-            // Entering drawing mode: clear selection, start fresh
             currentFreeformGroup = null;
             currentFreeformPathData = [];
             currentFreeformPathElement = null;
             SvgManager.clearFreeformPointVisuals();
             SvgManager.setSelectedShapeGroup(null);
-            console.log("Freeform drawing mode activated (click to add points).");
+            console.log("Add Point button clicked. Ready to draw new freeform path.");
         } else {
-            // Exiting drawing mode (i.e., 'Stop Drawing' was clicked)
-            // This button now acts as a 'Done Editing' button in this context.
             if (currentFreeformGroup && currentFreeformPathData.length > 1 && currentFreeformPathData[currentFreeformPathData.length - 1].cmd !== 'Z') {
                 console.log("Freeform drawing stopped.");
-                // The path is already finalized by handleFreeformMouseUp or handleClosePathBtn
             }
-            
-            // Hide freeform tools and deselect shape
             freeformToolsDrawer.style.display = 'none';
             SvgManager.setSelectedShapeGroup(null);
-            currentFreeformGroup = null; // Clear state
+            currentFreeformGroup = null;
             currentFreeformPathElement = null;
             currentFreeformPathData = [];
-            SvgManager.clearFreeformPointVisuals(); // Ensure visuals are cleared
-            
+            SvgManager.clearFreeformPointVisuals();
             console.log("Exited freeform editing mode via 'Toggle Edit Mode' button.");
         }
         updateAllButtonStates();
@@ -440,16 +600,15 @@ function handleToggleEditModeBtn() {
 
 function handleClosePathBtn() {
     if (currentFreeformGroup && currentFreeformPathData.length > 1) {
-        // Add a 'Z' command to close the path only if not already closed
         if (currentFreeformPathData[currentFreeformPathData.length - 1].cmd !== 'Z') {
             currentFreeformPathData.push({ cmd: 'Z' });
             SvgManager.updateFreeformPath(currentFreeformPathElement, currentFreeformPathData);
         }
-        isDrawingFreeform = false; // End drawing for this path
-        SvgManager.clearFreeformPointVisuals(); // Clear point visuals after closing
-        // Keep currentFreeformGroup and currentFreeformPathElement for selection/editing
-        SvgManager.setSelectedShapeGroup(currentFreeformGroup); // Ensure the shape is selected
-        DragAndResize.enableDragAndResize(currentFreeformGroup); // Ensure it's resizable
+        isDrawingFreeform = false;
+        SvgManager.clearFreeformPointVisuals();
+        SvgManager.setSelectedShapeGroup(currentFreeformGroup);
+        DragAndResize.enableDragAndResize(currentFreeformGroup);
+        historyManager.pushState(SvgManager.getCanvasStateAsData());
         updateAllButtonStates();
         console.log("Path closed and freeform drawing ended. Shape is now selectable and resizable.");
     } else {
@@ -458,36 +617,32 @@ function handleClosePathBtn() {
 }
 
 function handleFreeformMouseDown(e) {
-    if (e.button !== 0) return; // Only left click
+    if (e.button !== 0) return;
 
     const svgCanvas = SvgManager.getSvgCanvas();
     const svgRect = svgCanvas.getBoundingClientRect();
     const x = e.clientX - svgRect.left;
     const y = e.clientY - svgRect.top;
 
-    // If in drawing mode (isDrawingFreeform is true)
     if (isDrawingFreeform && shapeTypeDropdownValue === 'freeform') {
         if (!currentFreeformGroup) {
-            // Start a new freeform shape
             currentFreeformPathData = [{ cmd: 'M', x: x, y: y }];
             const color = colorSelect.value;
             const label = labelText.value.trim() || `Freeform ${Date.now()}`;
-            currentFreeformGroup = SvgManager.createFreeformPath(currentFreeformPathData, color, label);
-            currentFreeformPathElement = currentFreeformGroup._shapeBody; // The path element itself
-            SvgManager.setSelectedShapeGroup(currentFreeformGroup); // Select the new group
-            DragAndResize.enableDragAndResize(currentFreeformGroup); // Enable drag/resize for the new freeform shape
-            SvgManager.addFreeformPointVisual(currentFreeformGroup, { x: x, y: y }, 0); // Add visual point for the first point
+            currentFreeformGroup = SvgManager.createFreeformPath(currentFreeformPathData, color, label, strokeColorInput.value, 2, null, noFillColorCheckbox.checked); // Pass noFillColorCheckbox.checked
+            currentFreeformPathElement = currentFreeformGroup._shapeBody;
+            SvgManager.setSelectedShapeGroup(currentFreeformGroup);
+            DragAndResize.enableDragAndResize(currentFreeformGroup);
+            SvgManager.addFreeformPointVisual(currentFreeformGroup, { x: x, y: y }, 0);
         } else {
-            // Continue drawing if a freeform shape is active and not closed
             const lastCommand = currentFreeformPathData[currentFreeformPathData.length - 1];
-            if (lastCommand && lastCommand.cmd !== 'Z') { // Only add if path is not closed
+            if (lastCommand && lastCommand.cmd !== 'Z') {
                 currentFreeformPathData.push({ cmd: 'L', x: x, y: y });
                 SvgManager.updateFreeformPath(currentFreeformPathElement, currentFreeformPathData);
-                SvgManager.addFreeformPointVisual(currentFreeformGroup, { x: x, y: y }, currentFreeformPathData.length - 1); // Add visual point for subsequent points
+                SvgManager.addFreeformPointVisual(currentFreeformGroup, { x: x, y: y }, currentFreeformPathData.length - 1);
             }
         }
     } else {
-        // If not in drawing mode, allow normal selection/deselection
         if (e.target === svgCanvas) {
             SvgManager.setSelectedShapeGroup(null);
             updateAllButtonStates();
@@ -502,40 +657,30 @@ function handleFreeformMouseMove(e) {
     const svgRect = svgCanvas.getBoundingClientRect();
     const x = e.clientX - svgRect.left;
     const y = e.clientY - svgRect.top;
-
-    // For now, we'll keep it simple for point-by-point drawing.
-    // If we were drawing a continuous line, we'd update the last segment here.
-    // This could be used for rubber-banding effect for the current segment.
-    // For now, just update the path if it's the first point (M) or last point (L) of a segment.
-    if (currentFreeformPathData.length === 1) { // Only the 'M' command exists
-        // This is primarily for visual feedback during drag-to-draw, not point-by-point
-        // For point-by-point, mousemove doesn't typically modify the path data directly.
-    } else {
-        // If the last command is 'L', we could update its coordinates to provide rubber-banding
-        // This requires more sophisticated path data management (e.g., a temporary last point).
-        // For now, we'll skip live update on mousemove for simplicity in point-by-point.
-    }
 }
 
 function handleFreeformMouseUp(e) {
-    // For point-by-point drawing, mouse up just signifies end of interaction for that point
-    // We don't reset isDrawingFreeform here if we want to add multiple points by clicking.
-    // isDrawingFreeform will be reset when a different tool is selected or drawing is finalized.
-    // If we were doing a drag-to-draw continuous path, this is where we'd finalize the segment.
 }
 
 function handleCopyShape() {
     const selectedGroup = SvgManager.getSelectedShapeGroup();
     if (selectedGroup) {
         copiedShapeData = SvgManager.getShapeData(selectedGroup);
+        copiedShapeData.eyeColor = selectedGroup.getAttribute('data-eye-color');
+        copiedShapeData.clothing = selectedGroup.getAttribute('data-clothing');
+        copiedShapeData.hairStyle = selectedGroup.getAttribute('data-hair-style');
+        copiedShapeData.hairColor = selectedGroup.getAttribute('data-hair-color');
+        copiedShapeData.noColor = selectedGroup.getAttribute('data-no-color') === 'true'; // Copy no-color state
+        copiedShapeData.promptPrefix = selectedGroup.getAttribute('data-prompt-prefix'); // Copy prompt prefix
+        copiedShapeData.promptSuffix = selectedGroup.getAttribute('data-prompt-suffix'); // Copy prompt suffix
         console.log('Shape copied:', copiedShapeData);
     }
 }
 
 function handlePasteShape() {
     if (copiedShapeData) {
-        const newX = copiedShapeData.x + 20; // Offset pasted shape
-        const newY = copiedShapeData.y + 20; // Offset pasted shape
+        const newX = copiedShapeData.x + 20;
+        const newY = copiedShapeData.y + 20;
         
         const newGroup = SvgManager.createShapeGroup(
             copiedShapeData.type,
@@ -544,21 +689,36 @@ function handlePasteShape() {
             newX,
             newY,
             copiedShapeData.width,
-            copiedShapeData.height
+            copiedShapeData.height,
+            copiedShapeData.strokeColor,
+            copiedShapeData.strokeWidth,
+            null, // Let SvgManager generate a new ID
+            copiedShapeData.noColor // Pass noColor state
         );
         if (newGroup) {
+            newGroup.setAttribute('data-eye-color', copiedShapeData.eyeColor || '');
+            newGroup.setAttribute('data-clothing', copiedShapeData.clothing || '');
+            newGroup.setAttribute('data-hair-style', copiedShapeData.hairStyle || '');
+            newGroup.setAttribute('data-hair-color', copiedShapeData.hairColor || '');
+            newGroup.setAttribute('data-prompt-prefix', copiedShapeData.promptPrefix || ''); // Paste prompt prefix
+            newGroup.setAttribute('data-prompt-suffix', copiedShapeData.promptSuffix || ''); // Paste prompt suffix
+
             DragAndResize.enableDragAndResize(newGroup);
             SvgManager.setSelectedShapeGroup(newGroup);
             updateAllButtonStates();
+            historyManager.pushState(SvgManager.getCanvasStateAsData());
             console.log('Shape pasted:', newGroup);
         }
     }
 }
 
 function handleDoneEditingFreeform() {
-    isDrawingFreeform = false; // Exit drawing/editing mode
-    freeformToolsDrawer.style.display = 'none'; // Hide the freeform tools
-    SvgManager.setSelectedShapeGroup(null); // Deselect the freeform shape
+    if (isDrawingFreeform || currentFreeformGroup) {
+        historyManager.pushState(SvgManager.getCanvasStateAsData());
+    }
+    isDrawingFreeform = false;
+    freeformToolsDrawer.style.display = 'none';
+    SvgManager.setSelectedShapeGroup(null);
     updateAllButtonStates();
     console.log("Exited freeform editing mode.");
 }
@@ -569,20 +729,18 @@ function resetSelectedFreeformPoint() {
     }
     selectedFreeformPointVisual = null;
     selectedFreeformPointIndex = -1;
-    updateAllButtonStates(); // Update button states after resetting selection
+    updateAllButtonStates();
 }
 
 function handleFreeformPointClick(e) {
     const newSelectedPointVisual = e.detail.pointVisual;
     const newSelectedPointIndex = e.detail.pointIndex;
 
-    // Deselect previously selected point if different
     if (selectedFreeformPointVisual && selectedFreeformPointVisual !== newSelectedPointVisual) {
         selectedFreeformPointVisual.classList.remove('selected-point');
     }
 
     if (selectedFreeformPointVisual === newSelectedPointVisual) {
-        // Deselect if clicking the same point again
         selectedFreeformPointVisual.classList.remove('selected-point');
         selectedFreeformPointVisual = null;
         selectedFreeformPointIndex = -1;
@@ -591,114 +749,119 @@ function handleFreeformPointClick(e) {
         selectedFreeformPointVisual = newSelectedPointVisual;
         selectedFreeformPointIndex = newSelectedPointIndex;
     }
-    updateAllButtonStates(); // Update button states based on point selection
+    updateAllButtonStates();
 }
 
-// Function to setup a custom dropdown
-// Returns an object with methods to control the dropdown
-    // Function to setup a custom dropdown
-    // Returns an object with methods to control the dropdown
-    function setupCustomDropdown(dropdownId, optionsData, onSelectCallback = null) {
-        const dropdown = document.getElementById(dropdownId);
-        const selectedValueDisplay = dropdown.querySelector('.dropdown-selected-value');
-        const optionsContainer = dropdown.querySelector('.dropdown-options');
+function setupCustomDropdown(dropdownId, optionsData, onSelectCallback = null, includeNoneOption = false) {
+    const dropdown = document.getElementById(dropdownId);
+    const selectedValueDisplay = dropdown.querySelector('.dropdown-selected-value');
+    const optionsContainer = dropdown.querySelector('.dropdown-options');
 
-        let currentSelectedValue = null; // This will store the 'value' attribute of the selected option
-        let currentSelectedObject = null; // This will store the entire optionData object of the selected option
+    let currentSelectedValue = null;
+    let currentSelectedObject = null;
 
-        // Function to populate/update options
-        const updateOptions = (newOptionsData, initialValue = null) => { // Added initialValue parameter
-            optionsContainer.innerHTML = ''; // Clear existing options
-            let foundInitial = false; // Flag to check if initialValue was found and set
+    // Add a "Select X" option if requested
+    let finalOptionsData = [...optionsData];
+    if (includeNoneOption) {
+        const dropdownLabel = dropdown.closest('.control-section').querySelector('h3').textContent; // Get parent section title
+        finalOptionsData.unshift({ name: `Select ${dropdownLabel.replace('s', '')}`, value: '' }); // Prepend "Select X"
+    }
 
-            newOptionsData.forEach(optionData => {
-                const optionElement = document.createElement('div');
-                optionElement.classList.add('dropdown-option');
-                optionElement.textContent = optionData.name;
-                optionElement.setAttribute('data-value', optionData.value || optionData.name); 
-                optionElement.addEventListener('click', () => {
-                    selectedValueDisplay.textContent = optionData.name;
-                    selectedValueDisplay.setAttribute('data-value', optionData.value || optionData.name);
-                    currentSelectedValue = optionData.value || optionData.name;
-                    currentSelectedObject = optionData;
-                    dropdown.classList.remove('open');
-                    if (onSelectCallback) {
-                        onSelectCallback(currentSelectedObject);
-                    }
-                });
-                optionsContainer.appendChild(optionElement);
-
-                // Check if this option matches the initialValue
-                if (initialValue !== null && (optionData.value === initialValue || optionData.name === initialValue)) {
-                    selectedValueDisplay.textContent = optionData.name;
-                    selectedValueDisplay.setAttribute('data-value', optionData.value || optionData.name);
-                    currentSelectedValue = optionData.value || optionData.name;
-                    currentSelectedObject = optionData;
-                    foundInitial = true;
+    const updateOptions = (newOptionsData) => {
+        optionsContainer.innerHTML = '';
+        newOptionsData.forEach(optionData => {
+            const optionElement = document.createElement('div');
+            optionElement.classList.add('dropdown-option');
+            optionElement.textContent = optionData.name;
+            optionElement.setAttribute('data-value', optionData.value || ''); // Ensure data-value is empty string for "None"
+            optionElement.addEventListener('click', () => {
+                selectedValueDisplay.textContent = optionData.name;
+                selectedValueDisplay.setAttribute('data-value', optionData.value || ''); // Ensure data-value is empty string for "None"
+                currentSelectedValue = optionData.value || '';
+                currentSelectedObject = optionData;
+                dropdown.classList.remove('open');
+                if (onSelectCallback) {
+                    onSelectCallback(currentSelectedObject);
                 }
             });
+            optionsContainer.appendChild(optionElement);
+        });
 
-            // If no initialValue was provided or found, default to the first option
-            if (!foundInitial && newOptionsData.length > 0) {
-                selectedValueDisplay.textContent = newOptionsData[0].name;
-                selectedValueDisplay.setAttribute('data-value', newOptionsData[0].value || newOptionsData[0].name);
-                currentSelectedValue = newOptionsData[0].value || newOptionsData[0].name;
-                currentSelectedObject = newOptionsData[0];
-            } else if (newOptionsData.length === 0) { // If no options at all
+        if (newOptionsData.length === 0) {
+            selectedValueDisplay.textContent = '';
+            selectedValueDisplay.setAttribute('data-value', '');
+            currentSelectedValue = null;
+            currentSelectedObject = null;
+        }
+    };
+
+    const setSelectedValue = (valueToSelect) => {
+        // Find the option by value first, then by name if value is empty (for "Select X" option)
+        const selectedOption = finalOptionsData.find(opt => opt.value === valueToSelect) ||
+                               (valueToSelect === '' && includeNoneOption ? finalOptionsData[0] : null); // Select "None" if value is empty and option exists
+
+        if (selectedOption) {
+            selectedValueDisplay.textContent = selectedOption.name;
+            selectedValueDisplay.setAttribute('data-value', selectedOption.value || '');
+            currentSelectedValue = selectedOption.value || '';
+            currentSelectedObject = selectedOption;
+        } else {
+            // If the value doesn't match any option, default to the first option (which might be "Select X")
+            if (finalOptionsData.length > 0) {
+                selectedValueDisplay.textContent = finalOptionsData[0].name;
+                selectedValueDisplay.setAttribute('data-value', finalOptionsData[0].value || '');
+                currentSelectedValue = finalOptionsData[0].value || '';
+                currentSelectedObject = finalOptionsData[0];
+            } else {
                 selectedValueDisplay.textContent = '';
                 selectedValueDisplay.setAttribute('data-value', '');
                 currentSelectedValue = null;
                 currentSelectedObject = null;
             }
-        };
+        }
+    };
 
-        // Get the initial value from the HTML's selected display element
-        const initialHtmlValue = selectedValueDisplay.getAttribute('data-value');
-        
-        // Initial population, passing the value from HTML
-        updateOptions(optionsData, initialHtmlValue);
+    updateOptions(finalOptionsData); // Use finalOptionsData for initial population
+    const initialHtmlValue = selectedValueDisplay.getAttribute('data-value');
+    setSelectedValue(initialHtmlValue || ''); // Pass empty string to default to "Select X" if exists
 
-        // Toggle dropdown on click
-        selectedValueDisplay.addEventListener('click', (event) => {
-            event.stopPropagation(); // Prevent document click listener from closing it immediately
-            document.querySelectorAll('.custom-dropdown.open').forEach(openDropdown => {
-                if (openDropdown !== dropdown) { // Close other open dropdowns
-                    openDropdown.classList.remove('open');
-                }
-            });
-            dropdown.classList.toggle('open');
+    selectedValueDisplay.addEventListener('click', (event) => {
+        event.stopPropagation();
+        document.querySelectorAll('.custom-dropdown.open').forEach(openDropdown => {
+            if (openDropdown !== dropdown) {
+                openDropdown.classList.remove('open');
+            }
         });
+        dropdown.classList.toggle('open');
+    });
 
-        // Return control object
-        return {
-            getSelectedValue: () => currentSelectedValue,
-            getSelectedObject: () => currentSelectedObject, // New method to get the full selected object
-            updateOptions: updateOptions
-        };
-    }
+    return {
+        getSelectedValue: () => currentSelectedValue,
+        getSelectedObject: () => currentSelectedObject,
+        updateOptions: updateOptions,
+        setSelectedValue: setSelectedValue
+    };
+}
 
 function populateCameraAngles(container) {
     const angles = BackgroundManager.getCameraAngles();
-    container.innerHTML = ''; // Clear existing buttons
+    container.innerHTML = '';
     angles.forEach(angle => {
         const button = document.createElement('button');
         button.textContent = angle.name;
         button.classList.add('camera-angle-btn');
         button.setAttribute('data-prompt-phrase', angle.prompt_phrase);
         button.addEventListener('click', () => {
-            // Remove 'selected' class from all buttons
             document.querySelectorAll('.camera-angle-btn').forEach(btn => {
                 btn.classList.remove('selected');
             });
-            // Add 'selected' class to the clicked button
             button.classList.add('selected');
             selectedCameraAngle = angle.prompt_phrase;
-            handleExportPrompt(); // Re-generate prompt with new camera angle
+            handleExportPrompt();
         });
         container.appendChild(button);
     });
 
-    // Select the first angle by default
     if (angles.length > 0) {
         container.querySelector('.camera-angle-btn').classList.add('selected');
         selectedCameraAngle = angles[0].prompt_phrase;
@@ -706,49 +869,99 @@ function populateCameraAngles(container) {
 }
 
 function handleAddShape() {
-    const shapeType = shapeTypeDropdownValue; // Get value from custom dropdown
-    const color = colorSelect.value;
+    const shapeType = shapeTypeDropdownValue;
+    let color = colorSelect.value;
     const label = labelText.value.trim() || `Shape ${Date.now()}`;
-    const strokeColor = strokeColorInput.value; // Get stroke color
-    const strokeWidth = 2; // Default stroke width
+    const strokeColor = strokeColorInput.value;
+    const strokeWidth = 2;
+
+    let isNoColorSelected = noFillColorCheckbox.checked;
+
+    if (isNoColorSelected) {
+        color = '#F5DEB3'; // Set to flesh tone
+    }
 
     if (shapeType === 'freeform') {
-        // Automatically place the first point and activate drawing mode
         isDrawingFreeform = true;
-        currentFreeformGroup = null; // Ensure a new path starts
+        currentFreeformGroup = null;
         currentFreeformPathData = [];
         currentFreeformPathElement = null;
-        SvgManager.clearFreeformPointVisuals(); // Clear any old point visuals
-        SvgManager.setSelectedShapeGroup(null); // Deselect any existing shape
+        SvgManager.clearFreeformPointVisuals();
+        SvgManager.setSelectedShapeGroup(null);
 
         const svgCanvas = SvgManager.getSvgCanvas();
-        const initialX = svgCanvas.clientWidth / 2; // Center X
-        const initialY = svgCanvas.clientHeight / 2; // Center Y
+        const initialX = svgCanvas.clientWidth / 2;
+        const initialY = svgCanvas.clientHeight / 2;
 
         currentFreeformPathData = [{ cmd: 'M', x: initialX, y: initialY }];
-        currentFreeformGroup = SvgManager.createFreeformPath(currentFreeformPathData, color, label, strokeColor, strokeWidth);
+        currentFreeformGroup = SvgManager.createFreeformPath(currentFreeformPathData, color, label, strokeColor, strokeWidth, null, isNoColorSelected);
         currentFreeformPathElement = currentFreeformGroup._shapeBody;
         SvgManager.setSelectedShapeGroup(currentFreeformGroup);
-        DragAndResize.enableDragAndResize(currentFreeformGroup); // Enable drag/resize for the new freeform shape
-        SvgManager.addFreeformPointVisual(currentFreeformGroup, { x: initialX, y: initialY }, 0); // Add visual point for the first point
+        DragAndResize.enableDragAndResize(currentFreeformGroup);
+        SvgManager.addFreeformPointVisual(currentFreeformGroup, { x: initialX, y: initialY }, 0);
 
-        updateAllButtonStates();
-        console.log("Freeform drawing mode activated. First point placed automatically. Click on canvas to add more points.");
     } else {
         const initialX = 50;
         const initialY = 50;
         const initialWidth = 100;
         const initialHeight = 100;
 
-        const newGroup = SvgManager.createShapeGroup(shapeType, color, label, initialX, initialY, initialWidth, initialHeight, strokeColor, strokeWidth);
+        const newGroup = SvgManager.createShapeGroup(shapeType, color, label, initialX, initialY, initialWidth, initialHeight, strokeColor, strokeWidth, null, isNoColorSelected);
         if (newGroup) {
-            DragAndResize.enableDragAndResize(newGroup); // Enable drag/resize for non-freeform shapes
+            DragAndResize.enableDragAndResize(newGroup);
             labelText.value = '';
-            SvgManager.setSelectedShapeGroup(newGroup); // Select the new shape
-            updateAllButtonStates();
+            SvgManager.setSelectedShapeGroup(newGroup);
         }
     }
-    handleExportPrompt(); // Call after shape is added/mode is set
+    updateAllButtonStates();
+    historyManager.pushState(SvgManager.getCanvasStateAsData());
+    handleExportPrompt();
+}
+
+function handleNoFillColorChange() {
+    const selectedGroup = SvgManager.getSelectedShapeGroup();
+    if (noFillColorCheckbox.checked) {
+        if (selectedGroup) {
+            historyManager.pushState(SvgManager.getCanvasStateAsData());
+            selectedGroup.setAttribute('data-original-color', selectedGroup.getAttribute('data-color')); // Store original color
+            SvgManager.updateShapeColor(selectedGroup, '#F5DEB3', true); // Update shape with flesh tone and mark as no-color
+        }
+        colorSelect.value = '#F5DEB3'; // Set color picker to flesh tone
+        colorSelect.disabled = true; // Disable color picker
+    } else {
+        colorSelect.disabled = false; // Enable color picker
+        if (selectedGroup) {
+            historyManager.pushState(SvgManager.getCanvasStateAsData());
+            const originalColor = selectedGroup.getAttribute('data-original-color');
+            SvgManager.updateShapeColor(selectedGroup, originalColor || '#FF0000', false); // Restore original color or default red
+            selectedGroup.removeAttribute('data-original-color'); // Clean up
+            colorSelect.value = originalColor || '#FF0000'; // Update color picker
+        }
+    }
+    handleExportPrompt();
+}
+
+function handleStrokeColorChange(e) {
+    const newColor = e.target.value;
+    const selectedGroup = SvgManager.getSelectedShapeGroup();
+    if (selectedGroup) {
+        historyManager.pushState(SvgManager.getCanvasStateAsData());
+        SvgManager.updateShapeStrokeColor(selectedGroup, newColor);
+        handleExportPrompt();
+    }
+}
+
+function handleApplyStrokeToAll() {
+    const strokeColor = strokeColorInput.value;
+    const svgCanvas = SvgManager.getSvgCanvas();
+    const allShapeGroups = svgCanvas.querySelectorAll('.shape-group');
+    if (allShapeGroups.length > 0) {
+        historyManager.pushState(SvgManager.getCanvasStateAsData());
+        allShapeGroups.forEach(group => {
+            SvgManager.updateShapeStrokeColor(group, strokeColor);
+        });
+        handleExportPrompt();
+    }
 }
 
 function handleExportPrompt() {
@@ -759,22 +972,35 @@ function handleExportPrompt() {
     const canvasWidth = canvasDimensions.width;
     const canvasHeight = canvasDimensions.height;
 
-    // Group shapes by type and color
-    const groupedShapes = {}; // Key: "type_color", Value: Array of shape data
+    const groupedShapes = {};
 
-    console.log("handleExportPrompt: Found groups:", groups.length); // DIAGNOSTIC
     groups.forEach((group, index) => {
         const shapeDataFromManager = SvgManager.getShapeData(group);
         if (!shapeDataFromManager) {
             console.warn("Could not get shape data for group:", group);
-            return; // Skip this group if data is not available
+            return;
         }
 
         const label = shapeDataFromManager.label;
         const shapeType = shapeDataFromManager.type;
-        const hexColor = shapeDataFromManager.color; // This is already the hex color
-        console.log(`Processing group ${index}: Label='${label}', Type='${shapeType}', Color='${hexColor}'`); // DIAGNOSTIC
-        const naturalColorName = getClosestColorName(hexColor);
+        const hexColor = shapeDataFromManager.color;
+        const emotion = shapeDataFromManager.emotion;
+        const action = shapeDataFromManager.action;
+        const eyeColor = shapeDataFromManager.eyeColor;
+        const clothing = shapeDataFromManager.clothing;
+        const hairStyle = shapeDataFromManager.hairStyle;
+        const hairColor = shapeDataFromManager.hairColor;
+        const isNoColor = shapeDataFromManager.noColor;
+        const promptPrefix = group.getAttribute('data-prompt-prefix') || ''; // Get prefix
+        const promptSuffix = group.getAttribute('data-prompt-suffix') || ''; // Get suffix
+        
+        console.log(`Processing group ${index}: Label='${label}', Type='${shapeType}', Color='${hexColor}', Emotion='${emotion}', Action='${action}', EyeColor='${eyeColor}', Clothing='${clothing}', HairStyle='${hairStyle}', HairColor='${hairColor}', NoColor='${isNoColor}', PromptPrefix='${promptPrefix}', PromptSuffix='${promptSuffix}'`);
+        console.log("Full shapeDataFromManager:", shapeDataFromManager);
+
+        let naturalColorName = getClosestColorName(hexColor);
+        if (isNoColor) {
+            naturalColorName = "flesh-toned";
+        }
 
         const renderedWidth = shapeDataFromManager.width;
         const renderedHeight = shapeDataFromManager.height;
@@ -815,12 +1041,11 @@ function handleExportPrompt() {
         };
         const naturalPosition = positionMap[`${verticalPos}-${horizontalPos}`] || `at ${verticalPos}-${horizontalPos}`;
 
-        // Z-index description (simplified for individual processing, will be re-evaluated for groups)
         let zIndexDescription = '';
-        if (groups.length > 1) { // Only add z-index info if there's more than one shape
-            if (index === groups.length - 1) { // Last element in DOM is on top
+        if (groups.length > 1) {
+            if (index === groups.length - 1) {
                 zIndexDescription = 'in the foreground';
-            } else if (index === 0) { // First element in DOM is at the back
+            } else if (index === 0) {
                 zIndexDescription = 'in the background';
             }
         }
@@ -829,10 +1054,19 @@ function handleExportPrompt() {
             label: label,
             type: shapeType,
             color: naturalColorName,
+            emotion: emotion,
+            action: action,
+            eyeColor: eyeColor,
+            clothing: clothing,
+            hairStyle: hairStyle,
+            hairColor: hairColor,
             naturalPosition: naturalPosition,
             zIndexDescription: zIndexDescription,
             size: { width: Math.round(renderedWidth), height: Math.round(renderedHeight) },
-            originalGroupIndex: index // Keep original index for sorting if needed
+            originalGroupIndex: index,
+            noColor: isNoColor,
+            promptPrefix: promptPrefix, // Add to shapeData
+            promptSuffix: promptSuffix // Add to shapeData
         };
 
         const key = `${shapeType}_${naturalColorName}`;
@@ -844,17 +1078,14 @@ function handleExportPrompt() {
 
     let prompt_parts = [];
 
-    // 1. Camera Angle
     if (selectedCameraAngle) {
         prompt_parts.push(selectedCameraAngle);
     }
 
-    // 2. Art Style
     if (selectedArtStyle) {
         prompt_parts.push(`${selectedArtStyle} style`);
     }
 
-    // 3. Scene/Background introduction
     let background_phrase;
     if (selectedBackgroundIdea) {
         background_phrase = `a scene on a background of ${selectedBackgroundIdea}`;
@@ -863,10 +1094,8 @@ function handleExportPrompt() {
     }
     prompt_parts.push(background_phrase);
 
-    // Join the initial parts
     let intro_sentence = "Generate " + prompt_parts.join(", ") + ".";
 
-    // 4. Lighting and Mood (as a separate sentence if present)
     if (selectedLightingMood) {
         intro_sentence += ` The lighting is ${selectedLightingMood}.`;
     }
@@ -876,34 +1105,87 @@ function handleExportPrompt() {
     const shapePhrases = [];
     for (const key in groupedShapes) {
         const shapesInGroup = groupedShapes[key];
-        const firstShape = shapesInGroup[0]; // Use first shape for common properties
+        const firstShape = shapesInGroup[0];
 
         let phrase;
         if (shapesInGroup.length === 1) {
-            // Single instance, generate individual phrase
             const naturalSize = getNaturalSizeDescription(firstShape.size.width, firstShape.size.height, canvasWidth, canvasHeight);
-            phrase = `${naturalSize} ${firstShape.color} colored ${firstShape.label} located ${firstShape.naturalPosition} of the scene`;
+            
+            let descriptiveParts = [];
+
             if (firstShape.zIndexDescription) {
-                phrase += `, ${firstShape.zIndexDescription}`;
+                descriptiveParts.push(firstShape.zIndexDescription);
+            }
+            console.log("Debug Prompt - Emotion:", firstShape.emotion);
+            if (firstShape.emotion && firstShape.emotion !== 'Select Emotion' && firstShape.emotion !== '') {
+                descriptiveParts.push(`feeling ${firstShape.emotion}`);
+            }
+            console.log("Debug Prompt - Action:", firstShape.action);
+            if (firstShape.action && firstShape.action !== 'Select Action' && firstShape.action !== '') {
+                descriptiveParts.push(firstShape.action);
+            }
+            console.log("Debug Prompt - Eye Color:", firstShape.eyeColor);
+            if (firstShape.eyeColor && firstShape.eyeColor !== 'Select Eye Color' && firstShape.eyeColor !== '') {
+                descriptiveParts.push(firstShape.eyeColor);
+            }
+            console.log("Debug Prompt - Clothing:", firstShape.clothing);
+            if (firstShape.clothing && firstShape.clothing !== 'Select Clothing' && firstShape.clothing !== '') {
+                descriptiveParts.push(firstShape.clothing);
+            }
+            console.log("Debug Prompt - Hair Style:", firstShape.hairStyle);
+            if (firstShape.hairStyle && firstShape.hairStyle !== 'Select Hair Style' && firstShape.hairStyle !== '') {
+                descriptiveParts.push(firstShape.hairStyle);
+            }
+            console.log("Debug Prompt - Hair Color:", firstShape.hairColor);
+            if (firstShape.hairColor && firstShape.hairColor !== 'Select Hair Color' && firstShape.hairColor !== '') {
+                descriptiveParts.push(firstShape.hairColor);
+            }
+
+            let colorDescription = firstShape.color;
+            if (firstShape.noColor) {
+                colorDescription = ""; // Set to empty string if no color is selected
+            }
+            // Conditionally add colorDescription to the mainShapeClause
+            const mainShapeClause = `${naturalSize} ${colorDescription ? colorDescription + ' ' : ''}${firstShape.label} located ${firstShape.naturalPosition} of the scene`;
+            
+            let descriptivePhrase = '';
+            if (descriptiveParts.length > 0) {
+                if (descriptiveParts.length === 1) {
+                    descriptivePhrase = descriptiveParts[0];
+                } else if (descriptiveParts.length === 2) {
+                    descriptivePhrase = `${descriptiveParts[0]} and ${descriptiveParts[1]}`;
+                } else {
+                    descriptivePhrase = descriptiveParts.slice(0, -1).join(', ') + `, and ${descriptiveParts[descriptiveParts.length - 1]}`;
+                }
+                phrase = `${mainShapeClause} and ${descriptivePhrase}`;
+            } else {
+                phrase = mainShapeClause;
+            }
+            // Add prefix and suffix for single shapes
+            if (firstShape.promptPrefix) {
+                phrase = `${firstShape.promptPrefix} ${phrase}`;
+            }
+            if (firstShape.promptSuffix) {
+                phrase = `${phrase} ${firstShape.promptSuffix}`;
             }
         } else {
-            // Multiple instances, generate collective phrase
             const count = shapesInGroup.length;
-            const commonSize = getNaturalSizeDescription(firstShape.size.width, firstShape.size.height, canvasWidth, canvasHeight); // Assuming similar sizes
-            const commonColor = firstShape.color;
-            const commonLabel = firstShape.label; // Use label for collective description
+            const commonSize = getNaturalSizeDescription(firstShape.size.width, firstShape.size.height, canvasWidth, canvasHeight);
+            
+            let commonColorDescription = firstShape.color;
+            if (firstShape.noColor) {
+                commonColorDescription = ""; // Set to empty string if no color is selected
+            }
+            const commonLabel = firstShape.label;
 
-            // Pluralize the label (simple 's' rule, can be improved for irregular plurals)
             const pluralLabel = commonLabel.endsWith('s') ? commonLabel : `${commonLabel}s`;
 
-            // Determine quantity phrase
             let quantityPhrase;
             if (count === 2) quantityPhrase = 'two';
             else if (count <= 5) quantityPhrase = 'a few';
             else if (count <= 10) quantityPhrase = 'several';
             else quantityPhrase = 'multiple';
 
-            // Determine collective position
             const uniquePositions = new Set(shapesInGroup.map(s => s.naturalPosition));
             let collectivePosition;
             if (uniquePositions.size === 1) {
@@ -912,29 +1194,26 @@ function handleExportPrompt() {
                 collectivePosition = `scattered across various positions of the scene`;
             }
 
-            // Determine collective z-index
             const uniqueZIndexes = new Set(shapesInGroup.map(s => s.zIndexDescription).filter(Boolean));
             let collectiveZIndex = '';
             if (uniqueZIndexes.size === 1 && uniqueZIndexes.values().next().value) {
                 collectiveZIndex = `, ${uniqueZIndexes.values().next().value}`;
             } else if (uniqueZIndexes.size > 1) {
-                collectiveZIndex = `, at various depths`; // More general if mixed
+                collectiveZIndex = `, at various depths`;
             }
 
-            // Construct collective phrase
-            phrase = `${quantityPhrase} ${commonSize} ${commonColor} colored ${pluralLabel} ${collectivePosition}${collectiveZIndex}`;
+            // Conditionally add commonColorDescription to the phrase
+            phrase = `${quantityPhrase} ${commonSize} ${commonColorDescription ? commonColorDescription + ' ' : ''}${pluralLabel} ${collectivePosition}${collectiveZIndex}`;
         }
         shapePhrases.push(phrase);
     }
 
-    // Add shape phrases to the prompt in a more natural way
     if (shapePhrases.length > 0) {
-        // Join phrases with commas and "and" for the last one
         let elementsDescription = "";
         if (shapePhrases.length === 1) {
             elementsDescription = shapePhrases[0];
         } else if (shapePhrases.length === 2) {
-            elementsDescription = `${shapePhrases[0]} and ${shapePhrases[1]}`;
+            elementsDescription = `${shapePhrases[0]} and ${elementsDescription[1]}`;
         } else {
             elementsDescription = shapePhrases.slice(0, -1).join(', ') + `, and ${shapePhrases[shapePhrases.length - 1]}`;
         }
@@ -945,18 +1224,32 @@ function handleExportPrompt() {
     promptDisplay.value = prompt;
 }
 
+function handleCopyPrompt() {
+    const fullPrompt = promptDisplay.value;
+    // Remove the last line "Ensure all elements are accurately positioned, sized, and layered as described."
+    const promptToCopy = fullPrompt.replace(/\n\nEnsure all elements are accurately positioned, sized, and layered as described\./, '');
+    
+    // Copy to clipboard
+    navigator.clipboard.writeText(promptToCopy).then(() => {
+        alert('Prompt copied to clipboard!');
+    }).catch(err => {
+        console.error('Failed to copy prompt:', err);
+        alert('Failed to copy prompt. Please copy manually.');
+    });
+}
+
 function getNaturalSizeDescription(width, height, canvasWidth, canvasHeight) {
     const shapeArea = width * height;
     const canvasArea = canvasWidth * canvasHeight;
     const areaRatio = shapeArea / canvasArea;
 
-    if (areaRatio < 0.005) { // 0.5% of canvas area
+    if (areaRatio < 0.005) {
         return "a tiny";
-    } else if (areaRatio < 0.02) { // 2%
+    } else if (areaRatio < 0.02) {
         return "a small";
-    } else if (areaRatio < 0.08) { // 8%
+    } else if (areaRatio < 0.08) {
         return "a medium-sized";
-    } else if (areaRatio < 0.25) { // 25%
+    } else if (areaRatio < 0.25) {
         return "a large";
     } else {
         return "a very large";
@@ -966,6 +1259,7 @@ function getNaturalSizeDescription(width, height, canvasWidth, canvasHeight) {
 function handleZIndexChange(action) {
     const selectedGroup = SvgManager.getSelectedShapeGroup();
     if (selectedGroup) {
+        historyManager.pushState(SvgManager.getCanvasStateAsData());
         action(selectedGroup);
         updateAllButtonStates();
     }
@@ -975,19 +1269,18 @@ function handleDeleteShape() {
     const selectedGroup = SvgManager.getSelectedShapeGroup();
     
     if (activeTextEditorForeignObject && selectedGroup && activeTextEditorForeignObject.parentNode === selectedGroup) {
-        // If text editor is active within the selected shape group, clear text
-            const textElement = selectedGroup._labelText; // Assuming _labelText is stored on the group
-            if (textElement) {
-                SvgManager.updateShapeText(selectedGroup, '\u00A0'); // Set text to a non-breaking space to keep it clickable
-            }
-        activeTextEditorForeignObject.remove(); // Remove the foreignObject
-        activeTextEditorForeignObject = null; // Clear the global variable
+        const textElement = selectedGroup._labelText;
+        if (textElement) {
+            SvgManager.updateShapeText(selectedGroup, '\u00A0');
+        }
+        activeTextEditorForeignObject.remove();
+        activeTextEditorForeignObject = null;
         console.log("Text cleared for selected shape.");
     } else if (selectedGroup) {
-        // Otherwise, delete the entire shape
         const success = SvgManager.deleteSelectedShape();
         if (success) {
             console.log("Shape deleted.");
+            historyManager.pushState(SvgManager.getCanvasStateAsData());
         }
     }
     updateAllButtonStates();
@@ -997,16 +1290,22 @@ function handleColorChange(e) {
     const newColor = e.target.value;
     const selectedGroup = SvgManager.getSelectedShapeGroup();
     if (selectedGroup) {
-        SvgManager.updateShapeColor(selectedGroup, newColor);
-        handleExportPrompt(); // Re-generate prompt with new color
+        noFillColorCheckbox.checked = false; // Uncheck "no fill color"
+        historyManager.pushState(SvgManager.getCanvasStateAsData());
+        SvgManager.updateShapeColor(selectedGroup, newColor, false);
+        handleExportPrompt();
     }
 }
 
 function handleResetCanvas() {
     if (confirm("Are you sure you want to clear the canvas? All shapes will be deleted.")) {
         SvgManager.clearCanvas();
+        promptDisplay.value = '';
+        
+        historyManager.clear();
+        historyManager.pushState(SvgManager.getCanvasStateAsData());
+        
         updateAllButtonStates();
-        promptDisplay.value = ''; // Also clear the generated prompt
     }
 }
 
@@ -1014,17 +1313,29 @@ export function updateAllButtonStates() {
     const selected = SvgManager.getSelectedShapeGroup();
     const isFreeformSelected = selected && selected.getAttribute('data-shape-type') === 'freeform';
     
-    // Delete button
     deleteShapeBtn.disabled = !selected;
-    console.log('updateAllButtonStates: selected =', selected, 'deleteShapeBtn.disabled =', deleteShapeBtn.disabled);
 
-    // Color picker
+    undoBtn.disabled = !historyManager.canUndo();
+    redoBtn.disabled = !historyManager.canRedo();
+
     colorSelect.disabled = !selected;
     if (selected) {
-        colorSelect.value = selected.getAttribute('data-color');
+        const isNoColorActive = selected.getAttribute('data-no-color') === 'true';
+        if (isNoColorActive) {
+            colorSelect.value = '#F5DEB3';
+            colorSelect.disabled = true;
+            noFillColorCheckbox.checked = true;
+        } else {
+            colorSelect.value = selected.getAttribute('data-color');
+            colorSelect.disabled = false;
+            noFillColorCheckbox.checked = false;
+        }
+    } else {
+        colorSelect.disabled = true;
+        colorSelect.value = '#FF0000';
+        noFillColorCheckbox.checked = false;
     }
 
-    // Control visibility of freeformToolsDrawer
     if (freeformToolsDrawer) {
         if (shapeTypeDropdownValue === 'freeform' || isFreeformSelected) {
             freeformToolsDrawer.style.display = 'block';
@@ -1033,48 +1344,40 @@ export function updateAllButtonStates() {
         }
     }
 
-
-    // Z-index buttons
     const isSelected = !!selected;
     bringToFrontBtn.disabled = !isSelected || !selected.nextSibling;
     sendToBackBtn.disabled = !isSelected || !selected.previousSibling;
     bringForwardBtn.disabled = !isSelected || !selected.nextSibling;
     sendBackwardBtn.disabled = !isSelected || !selected.previousSibling;
 
-    // Ensure the main shape group has a pointer-events setting that allows events to be captured.
     if (selected) {
         selected.style.pointerEvents = 'all';
     }
 
-    // Update Toggle Edit Mode button text
     const toggleEditModeBtn = document.getElementById('toggle-edit-mode-btn');
     if (toggleEditModeBtn) {
         if (shapeTypeDropdownValue === 'freeform') {
             toggleEditModeBtn.disabled = false;
-            toggleEditModeBtn.textContent = isDrawingFreeform ? "Stop Drawing" : "Edit Points";
+            toggleEditModeBtn.textContent = "Stop Drawing";
         } else {
             toggleEditModeBtn.disabled = true;
-            toggleEditModeBtn.textContent = "Toggle Edit Mode"; // Default text when not in freeform
+            toggleEditModeBtn.textContent = "Toggle Edit Mode";
         }
     }
 
-    // Disable Add Point button if not in drawing mode or not freeform selected
     const addPointBtn = document.getElementById('add-point-btn');
     if (addPointBtn) {
         addPointBtn.disabled = !(shapeTypeDropdownValue === 'freeform' && isDrawingFreeform);
     }
     
-    // Disable Close Path button unless a freeform path is active and has enough points
     const closePathBtn = document.getElementById('close-path-btn');
     if (closePathBtn) {
         closePathBtn.disabled = !(shapeTypeDropdownValue === 'freeform' && currentFreeformGroup && currentFreeformPathData.length > 1);
     }
 
-    // Disable Delete Point and Convert to Bezier unless in editing mode and a freeform shape is selected
     const deletePointBtn = document.getElementById('delete-point-btn');
     const convertToBezierBtn = document.getElementById('convert-to-bezier-btn');
     if (deletePointBtn) {
-        // Enable delete point only if freeform is selected, not drawing, and a specific point is selected
         deletePointBtn.disabled = !(shapeTypeDropdownValue === 'freeform' && !isDrawingFreeform && selected && selectedFreeformPointIndex !== -1);
     }
     if (convertToBezierBtn) {
@@ -1082,12 +1385,11 @@ export function updateAllButtonStates() {
     }
 }
 
-// Pour l'édition du texte au double-clic
 document.addEventListener('dblclick', (e) => {
     if (e.target.classList.contains('shape-label')) {
         e.stopPropagation();
         const textElement = e.target;
-        const group = textElement.parentNode; // Le groupe est le parent du texte
+        const group = textElement.parentNode;
 
         const currentLabel = textElement.textContent;
         const foreignObject = document.createElementNS(SvgManager.SVG_NS, 'foreignObject');
@@ -1095,10 +1397,9 @@ document.addEventListener('dblclick', (e) => {
 
         const textBBox = textElement.getBBox();
         
-        // Positionner le foreignObject par rapport à la bbox du texte DANS le système de coordonnées du groupe
         foreignObject.setAttribute('x', textBBox.x);
         foreignObject.setAttribute('y', textBBox.y);
-        foreignObject.setAttribute('width', textBBox.width + 20); // Un peu de marge
+        foreignObject.setAttribute('width', textBBox.width + 20);
         foreignObject.setAttribute('height', textBBox.height + 10);
 
         input.type = 'text';
@@ -1124,7 +1425,7 @@ document.addEventListener('dblclick', (e) => {
             const newLabel = input.value.trim();
             SvgManager.updateShapeText(group, newLabel);
             foreignObject.remove();
-            activeTextEditorForeignObject = null; // Clear the global variable
+            activeTextEditorForeignObject = null;
         });
 
         input.addEventListener('keypress', (e) => {
@@ -1134,36 +1435,31 @@ document.addEventListener('dblclick', (e) => {
         });
 
         input.addEventListener('keydown', (e) => {
-            // Stop propagation for Delete and Backspace keys when input is active
             if (e.key === 'Delete' || e.key === 'Backspace') {
                 e.stopPropagation();
             }
         });
 
-        activeTextEditorForeignObject = foreignObject; // Set the global variable
+        activeTextEditorForeignObject = foreignObject;
     } else if (e.target.closest('.shape-group[data-shape-type="freeform"]')) {
-        e.stopPropagation(); // Prevent other dblclick handlers
+        e.stopPropagation();
         const freeformGroup = e.target.closest('.shape-group[data-shape-type="freeform"]');
         
-        // Set dropdown value to freeform
         const shapeTypeDropdown = document.getElementById('shape-type-dropdown');
         const freeformOption = shapeTypeDropdown.querySelector('.dropdown-option[data-value="freeform"]');
         if (freeformOption) {
-            // Manually trigger the click to update the dropdown's state and trigger its callback
             freeformOption.click(); 
         }
 
-        isDrawingFreeform = false; // Enter edit mode, not drawing mode
+        isDrawingFreeform = false;
         currentFreeformGroup = freeformGroup;
         currentFreeformPathElement = freeformGroup._shapeBody;
 
-        // Populate currentFreeformPathData from the selected shape's path data
-        // Assuming SvgManager has a function to get path data from an SVGPathElement
-        currentFreeformPathData = group. _pathData || SvgManager.getFreeformPathData(currentFreeformPathElement);
+        currentFreeformPathData = freeformGroup._pathData || SvgManager.getFreeformPathData(currentFreeformPathElement);
 
-        SvgManager.setSelectedShapeGroup(currentFreeformGroup); // Select the shape to show points
-        DragAndResize.enableDragAndResize(currentFreeformGroup); // Ensure it's resizable
-        freeformToolsDrawer.style.display = 'block'; // Show the freeform tools
+        SvgManager.setSelectedShapeGroup(currentFreeformGroup);
+        DragAndResize.enableDragAndResize(currentFreeformGroup);
+        freeformToolsDrawer.style.display = 'block';
         updateAllButtonStates();
         console.log("Freeform shape double-clicked. Entering edit mode.");
     }
@@ -1173,14 +1469,12 @@ function handleExportPng() {
     const svgCanvas = SvgManager.getSvgCanvas();
     const selectedShape = SvgManager.getSelectedShapeGroup();
 
-    // Store original display states and remove handles
     const handlesToRestore = [];
     const allShapeGroups = svgCanvas.querySelectorAll('.shape-group');
     allShapeGroups.forEach(group => {
         const handles = group._handles;
         if (handles && handles.length > 0) {
             handles.forEach(handle => {
-                // Check if the handle is actually a child of the group before removing
                 if (handle.parentNode === group) {
                     group.removeChild(handle);
                     handlesToRestore.push({ group: group, handle: handle });
@@ -1189,58 +1483,110 @@ function handleExportPng() {
         }
     });
 
-    // Temporarily remove 'selected' class from all shape groups to hide selection outline
     allShapeGroups.forEach(group => {
         group.classList.remove('selected');
     });
 
     const svgString = new XMLSerializer().serializeToString(svgCanvas);
-    const svgBlob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
-    const DOMURL = self.URL || self.webkitURL || self;
-    const url = DOMURL.createObjectURL(svgBlob);
+    const blob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const downloadLink = document.createElement('a');
+    downloadLink.href = url;
+    downloadLink.download = 'shap_prompteur_design.png';
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+    URL.revokeObjectURL(url);
 
-    const img = new Image();
-    img.onload = function() {
-        const canvas = document.createElement('canvas');
-        canvas.width = svgCanvas.clientWidth;
-        canvas.height = svgCanvas.clientHeight;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0);
-        DOMURL.revokeObjectURL(url);
+    handlesToRestore.forEach(item => {
+        item.group.appendChild(item.handle);
+    });
 
-        const pngUrl = canvas.toDataURL('image/png');
-        const downloadLink = document.createElement('a');
-        downloadLink.href = pngUrl;
-        downloadLink.download = 'shap_prompteur_design.png';
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        document.body.removeChild(downloadLink);
+    if (selectedShape) {
+        selectedShape.classList.add('selected');
+    }
+}
 
-        // Restore handles
-        handlesToRestore.forEach(item => {
-            item.group.appendChild(item.handle);
-        });
-
-        // Re-add 'selected' class to the previously selected shape
-        if (selectedShape) {
-            selectedShape.classList.add('selected');
+export function setIdCardIconClickListener(idCardIcon, shapeGroup) {
+    idCardIcon.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const objectIdCard = document.getElementById('object-id-card');
+        if (objectIdCard.style.display === 'block' && SvgManager.getSelectedShapeGroup() === shapeGroup) {
+            objectIdCard.style.display = 'none';
+        } else {
+            SvgManager.setSelectedShapeGroup(shapeGroup);
+            handleIdCardIconClick(shapeGroup);
         }
-    };
-    img.src = url;
+    });
+}
+
+function handleIdCardIconClick(shapeGroup) {
+    const objectIdCard = document.getElementById('object-id-card');
+    const objectIdCardHeader = objectIdCard.querySelector('.panel-header');
+
+    objectIdCard.style.display = 'block';
+
+    const shapeLabel = shapeGroup._labelText ? shapeGroup._labelText.textContent.trim() : 'Shape';
+    objectIdCardHeader.textContent = shapeLabel;
+
+    const currentEmotion = shapeGroup.getAttribute('data-emotion');
+    const currentAction = shapeGroup.getAttribute('data-action');
+    const currentEyeColor = shapeGroup.getAttribute('data-eye-color');
+    const currentClothing = shapeGroup.getAttribute('data-clothing');
+    const currentHairStyle = shapeGroup.getAttribute('data-hair-style');
+    const currentHairColor = shapeGroup.getAttribute('data-hair-color');
+
+    emotionDropdownInstance.setSelectedValue(currentEmotion);
+    actionDropdownInstance.setSelectedValue(currentAction);
+    eyeColorDropdownInstance.setSelectedValue(currentEyeColor);
+    clothingDropdownInstance.setSelectedValue(currentClothing);
+    hairStyleDropdownInstance.setSelectedValue(currentHairStyle);
+    hairColorDropdownInstance.setSelectedValue(currentHairColor);
+
+    // Populate custom prompt textareas
+    promptPrefixTextarea.value = shapeGroup.getAttribute('data-prompt-prefix') || '';
+    promptSuffixTextarea.value = shapeGroup.getAttribute('data-prompt-suffix') || '';
+}
+
+function handleSaveIdCardAttributes() {
+    const selectedGroup = SvgManager.getSelectedShapeGroup();
+    if (!selectedGroup) {
+        alert("Please select a shape first.");
+        return;
+    }
+
+    historyManager.pushState(SvgManager.getCanvasStateAsData());
+
+    const emotionDropdown = document.getElementById('emotion-dropdown');
+    const actionDropdown = document.getElementById('action-dropdown');
+    const eyeColorDropdown = document.getElementById('eye-color-dropdown');
+    const clothingDropdown = document.getElementById('clothing-dropdown');
+    const hairStyleDropdown = document.getElementById('hair-style-dropdown');
+    const hairColorDropdown = document.getElementById('hair-color-dropdown');
+
+    selectedGroup.setAttribute('data-emotion', emotionDropdown.querySelector('.dropdown-selected-value').getAttribute('data-value') || '');
+    selectedGroup.setAttribute('data-action', actionDropdown.querySelector('.dropdown-selected-value').getAttribute('data-value') || '');
+    selectedGroup.setAttribute('data-eye-color', eyeColorDropdown.querySelector('.dropdown-selected-value').getAttribute('data-value') || '');
+    selectedGroup.setAttribute('data-clothing', clothingDropdown.querySelector('.dropdown-selected-value').getAttribute('data-value') || '');
+    selectedGroup.setAttribute('data-hair-style', hairStyleDropdown.querySelector('.dropdown-selected-value').getAttribute('data-value') || '');
+    selectedGroup.setAttribute('data-hair-color', hairColorDropdown.querySelector('.dropdown-selected-value').getAttribute('data-value') || '');
+    selectedGroup.setAttribute('data-prompt-prefix', promptPrefixTextarea.value.trim()); // Save prefix text
+    selectedGroup.setAttribute('data-prompt-suffix', promptSuffixTextarea.value.trim()); // Save suffix text
+
+    handleExportPrompt();
+    alert("Attributes saved successfully!");
 }
 
 function handleSaveSvg() {
     const svgCanvas = SvgManager.getSvgCanvas();
     const selectedShape = SvgManager.getSelectedShapeGroup();
 
-    // Store original display states and remove handles
     const handlesToRestore = [];
     const allShapeGroups = svgCanvas.querySelectorAll('.shape-group');
     allShapeGroups.forEach(group => {
         const handles = group._handles;
         if (handles && handles.length > 0) {
             handles.forEach(handle => {
-                // Check if the handle is actually a child of the group before removing
                 if (handle.parentNode === group) {
                     group.removeChild(handle);
                     handlesToRestore.push({ group: group, handle: handle });
@@ -1249,7 +1595,6 @@ function handleSaveSvg() {
         }
     });
 
-    // Temporarily remove 'selected' class from all shape groups to hide selection outline
     allShapeGroups.forEach(group => {
         group.classList.remove('selected');
     });
@@ -1265,12 +1610,10 @@ function handleSaveSvg() {
     document.body.removeChild(downloadLink);
     URL.revokeObjectURL(url);
 
-    // Restore handles
     handlesToRestore.forEach(item => {
         item.group.appendChild(item.handle);
     });
 
-    // Re-add 'selected' class to the previously selected shape
     if (selectedShape) {
         selectedShape.classList.add('selected');
     }

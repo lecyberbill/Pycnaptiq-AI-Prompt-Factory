@@ -48,15 +48,10 @@ function startDragOrResize(e) {
         resizeHandle = e.target;
         resizeStartMouse = { x: mouseX, y: mouseY };
 
-    } else if (e.target.classList.contains('shape-body') || e.target.classList.contains('shape-label')) {
+    } else if (e.target.classList.contains('shape-body') || e.target.classList.contains('shape-label') || e.target.classList.contains('id-card-icon')) {
         isDragging = true;
         isResizing = false;
-        
-        // dragOffset est la différence entre la position de la souris et la position actuelle du groupe
-        dragOffset = {
-            x: mouseX - initialGroupTranslate.x,
-            y: mouseY - initialGroupTranslate.y
-        };
+        // No offset calculation needed; we'll use movementX/Y for direct manipulation.
     }
 }
 
@@ -69,11 +64,14 @@ export function doDragOrResize(e) {
     const canvasY = e.clientY - svgRect.top;
 
     let translateTransform = getOrCreateTransform(currentGroup, SVGTransform.SVG_TRANSFORM_TRANSLATE, 0);
-    let scaleTransform = getOrCreateTransform(currentGroup, SVGTransform.SVG_TRANSFORM_SCALE, 1);
 
     if (isDragging) {
-        translateTransform.setTranslate(canvasX - dragOffset.x, canvasY - dragOffset.y);
+        // Apply the mouse movement directly to the existing translation.
+        const currentMatrix = translateTransform.matrix;
+        translateTransform.setTranslate(currentMatrix.e + e.movementX, currentMatrix.f + e.movementY);
+
     } else if (isResizing && resizeHandle) {
+        let scaleTransform = getOrCreateTransform(currentGroup, SVGTransform.SVG_TRANSFORM_SCALE, 1);
         const dx = canvasX - resizeStartMouse.x;
         const dy = canvasY - resizeStartMouse.y;
 
@@ -158,12 +156,15 @@ export function doDragOrResize(e) {
 }
 
 export function endDragOrResize() {
+    const wasDraggingOrResizing = isDragging || isResizing;
+
     isDragging = false;
     isResizing = false;
     currentGroup = null;
     resizeHandle = null;
-    // The shape should remain selected after drag/resize.
-    // Deselection is handled by clicking on the canvas background.
+    
+    // Return true if a drag or resize operation was just completed
+    return wasDraggingOrResizing;
 }
 
 

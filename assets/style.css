@@ -4,10 +4,10 @@ body {
     background: linear-gradient(to bottom right, #dbe0f6, #717894); /* Gradient background */
     color: #333; /* Dark text for contrast */
     display: flex;
-    justify-content: center;
-    align-items: flex-start;
+    justify-content: center; /* Center horizontally */
+    align-items: center; /* Center vertically */
     min-height: 100vh;
-    padding: 20px;
+    /* Removed padding to allow main-container to handle spacing */
 }
 
 #controls-sidebar h1 {
@@ -22,11 +22,11 @@ body {
     display: flex;
     flex-direction: row; /* Arrange children horizontally */
     gap: 20px;
-    /* Removed max-width to allow content to dictate width, or control with body padding */
-    width: 100%; /* Ensure it takes full width to distribute space */
     background-color: transparent;
     align-items: flex-start; /* Align items to the top */
-    /* Removed max-width to allow content to dictate width, or control with body padding */
+    /*max-width: 1200px;  Set a maximum width for the application container */
+    margin: 20px auto; /* Add margin to center horizontally and provide vertical spacing */
+    /* Removed width: 100%; to allow flexbox centering to work */
 }
 
 #controls-sidebar {
@@ -441,4 +441,78 @@ body {
 
 .shape-group:active {
     cursor: grabbing;
+}
+
+/* Floating Panel Styling */
+.floating-panel {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 300px;
+    background: linear-gradient(to bottom right, #616280, #1f253b); /* Consistent with sidebars */
+    border-radius: 15px;
+    box-shadow: 8px 8px 16px #1a1e27, -8px -8px 16px #6a707a;
+    padding: 15px;
+    color: #e0e0e0;
+    z-index: 100; /* Ensure it's on top */
+    display: none; /* Hidden by default */
+    flex-direction: column;
+    gap: 15px;
+}
+
+.floating-panel.active {
+    display: flex; /* Show when active */
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.panel-header h2 {
+    margin: 0;
+    color: #4a90e2; /* Accent color for panel title */
+    font-size: 1.2em;
+}
+
+.panel-header button {
+    background: none;
+    border: none;
+    color: #e0e0e0;
+    font-size: 1.2em;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 5px;
+    transition: background-color 0.2s ease;
+}
+
+.panel-header button:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.panel-content {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+/* Specific styling for the ID card icon */
+.id-card-icon {
+    /* Base styles already defined in JS. Add any specific CSS overrides here if needed */
+    /* For example, if you want a border, a different shape etc. */
+    cursor: pointer;
+    stroke: #000000;
+    stroke-width: 1;
+    rx: 4; /* Rounded corners for the yellow rectangle */
+    ry: 4;
+}
+
+.id-card-icon:hover {
+    fill: #ffe000; /* Lighter yellow on hover */
+    stroke: #ffffff; /* White stroke on hover */
 }

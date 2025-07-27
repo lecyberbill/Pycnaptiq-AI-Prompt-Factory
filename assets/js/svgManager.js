@@ -1,36 +1,215 @@
 // js/svgManager.js
 
 export const SVG_NS = "http://www.w3.org/2000/svg";
+import * as DragAndResize from './dragAndResize.js'; // Import DragAndResize
+import { setIdCardIconClickListener } from './eventHandlers.js'; // Import the new function
+
 let svgCanvas;
 let selectedShapeGroup = null; // Groupe SVG actuellement sélectionné
+let currentGradient = null; // Variable interne pour suivre l'état du fond
 
 export function initSvgManager(canvasId) {
     svgCanvas = document.getElementById(canvasId);
 }
 
-export function createShapeGroup(shapeType, color, label, initialX, initialY, initialWidth, initialHeight, strokeColor = '#000000', strokeWidth = 2) {
+/**
+ * Serializes the current state of the SVG canvas into a data array.
+ * Each shape's properties, including position, size, color, and type,
+ * are extracted and stored in a plain JavaScript object.
+ * For freeform shapes, path data is also included.
+ * @returns {Array<object>} An array of data objects, each representing a shape.
+ */
+export function getCanvasStateAsData() {
+    // The state now includes shapes and background
+    const currentState = {
+        shapes: [],
+        background: {
+            gradient: currentGradient
+        }
+    };
+    const shapeGroups = svgCanvas.querySelectorAll('.shape-group');
+
+    shapeGroups.forEach(group => {
+        const shapeType = group.getAttribute('data-shape-type');
+        const color = group.getAttribute('data-color');
+        const label = group.getAttribute('data-label');
+        const strokeColor = group.getAttribute('data-stroke-color');
+        const strokeWidth = group.getAttribute('data-stroke-width');
+        const id = group.getAttribute('id');
+        const noColor = group.getAttribute('data-no-color') === 'true'; // Retrieve noColor state
+        const promptPrefix = group.getAttribute('data-prompt-prefix') || ''; // Retrieve prompt prefix
+        const promptSuffix = group.getAttribute('data-prompt-suffix') || ''; // Retrieve prompt suffix
+
+        let shapeData = {
+            id: id,
+            type: shapeType,
+            color: color,
+            label: label,
+            strokeColor: strokeColor,
+            strokeWidth: strokeWidth,
+            noColor: noColor, // Include noColor in serialized data
+            promptPrefix: promptPrefix, // Include promptPrefix in serialized data
+            promptSuffix: promptSuffix // Include promptSuffix in serialized data
+        };
+
+        // Get current transform values from the group
+        let currentX = 0;
+        let currentY = 0;
+        let currentScaleX = 1;
+        let currentScaleY = 1;
+
+        const transformList = group.transform.baseVal;
+        for (let i = 0; i < transformList.numberOfItems; i++) {
+            const transform = transformList.getItem(i);
+            if (transform.type === SVGTransform.SVG_TRANSFORM_TRANSLATE) {
+                currentX = transform.matrix.e;
+                currentY = transform.matrix.f;
+            } else if (transform.type === SVGTransform.SVG_TRANSFORM_SCALE) {
+                currentScaleX = transform.matrix.a;
+                currentScaleY = transform.matrix.d;
+            }
+        }
+
+        shapeData.transform = { 
+            translateX: currentX, 
+            translateY: currentY, 
+            scaleX: currentScaleX, 
+            scaleY: currentScaleY 
+        };
+
+        if (shapeType === 'freeform') {
+            shapeData.pathData = group._pathData;
+        } else {
+            const shapeBody = group.querySelector('.shape-body');
+            let initialWidth, initialHeight;
+
+            if (shapeType === 'rect') {
+                initialWidth = parseFloat(shapeBody.getAttribute('width'));
+                initialHeight = parseFloat(shapeBody.getAttribute('height'));
+            } else if (shapeType === 'circle') {
+                const r = parseFloat(shapeBody.getAttribute('r'));
+                initialWidth = r * 2;
+                initialHeight = r * 2;
+            } else if (shapeType === 'ellipse') {
+                const rx = parseFloat(shapeBody.getAttribute('rx'));
+                const ry = parseFloat(shapeBody.getAttribute('ry'));
+                initialWidth = rx * 2;
+                initialHeight = ry * 2;
+            } else if (shapeType === 'polygon') {
+                const bbox = shapeBody.getBBox();
+                initialWidth = bbox.width;
+                initialHeight = bbox.height;
+                shapeData.points = shapeBody.getAttribute('points');
+            }
+            shapeData.width = initialWidth;
+            shapeData.height = initialHeight;
+        }
+        currentState.shapes.push(shapeData);
+    });
+    return currentState;
+}
+
+/**
+ * Restores a given state to the SVG canvas by re-creating shapes from data.
+ * @param {object} state - A state object containing shapes and background info.
+ */
+export function restoreCanvasState(state) {
+    // 1. Clear the canvas completely
+    while (svgCanvas.firstChild) {
+        svgCanvas.removeChild(svgCanvas.firstChild);
+    }
+    selectedShapeGroup = null;
+
+    // 2. Restore the background from the state object
+    if (state.background && state.background.gradient) {
+        // This will set the internal variable AND draw the background
+        setCanvasBackgroundGradient(state.background.gradient);
+    } else {
+        // Explicitly clear the internal variable if the state has no background
+        currentGradient = null;
+    }
+
+    // 3. Recreate shapes from the state data
+    state.shapes.forEach(shapeData => {
+        let newGroup;
+        const { transform } = shapeData;
+
+        if (shapeData.type === 'freeform') {
+            newGroup = createFreeformPath(
+                shapeData.pathData,
+                shapeData.color,
+                shapeData.label,
+                shapeData.strokeColor,
+                shapeData.strokeWidth,
+                shapeData.id,
+                shapeData.noColor, // Pass noColor state
+                shapeData.promptPrefix, // Pass promptPrefix state
+                shapeData.promptSuffix // Pass promptSuffix state
+            );
+        } else {
+            newGroup = createShapeGroup(
+                shapeData.type,
+                shapeData.color,
+                shapeData.label,
+                transform.translateX, // Use translateX for initial position
+                transform.translateY, // Use translateY for initial position
+                shapeData.width,
+                shapeData.height,
+                shapeData.strokeColor,
+                shapeData.strokeWidth,
+                shapeData.id,
+                shapeData.noColor, // Pass noColor state
+                shapeData.promptPrefix, // Pass promptPrefix state
+                shapeData.promptSuffix // Pass promptSuffix state
+            );
+            if (newGroup && shapeData.type === 'polygon' && shapeData.points) {
+                newGroup.querySelector('.shape-body').setAttribute('points', shapeData.points);
+            }
+        }
+        
+        // After creation, apply the scale part of the transform.
+        // The translate part is already set during creation.
+        if (newGroup && transform) {
+            newGroup.setAttribute('transform', `translate(${transform.translateX},${transform.translateY}) scale(${transform.scaleX},${transform.scaleY})`);
+        }
+        if (newGroup) {
+            // Re-enable drag and resize for the newly created group
+            DragAndResize.enableDragAndResize(newGroup);
+            // Force update appearance for proper handle/text positioning after initial creation and potential transform application
+            updateShapeAppearance(newGroup);
+        }
+    });
+
+    // No need to call updateShapeAppearance for all shapes here, as it's called within createShapeGroup/createFreeformPath
+    // and explicitly after applying transform in this function.
+}
+
+export function createShapeGroup(shapeType, color, label, initialX, initialY, initialWidth, initialHeight, strokeColor = '#000000', strokeWidth = 2, existingId = null, noColor = false, promptPrefix = '', promptSuffix = '') {
     let element;
     let text;
+
+    // Use existing ID or generate a new one
+    const groupId = existingId || `shape-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
     switch (shapeType) {
         case 'rect':
             element = document.createElementNS(SVG_NS, 'rect');
-            element.setAttribute('x', initialX);
-            element.setAttribute('y', initialY);
+            element.setAttribute('x', 0); // Position relative to group's origin
+            element.setAttribute('y', 0); // Position relative to group's origin
             element.setAttribute('width', initialWidth);
             element.setAttribute('height', initialHeight);
             break;
         case 'circle':
             element = document.createElementNS(SVG_NS, 'circle');
             const radius = Math.min(initialWidth, initialHeight) / 2; // Use smaller dimension for radius
-            element.setAttribute('cx', initialX + radius);
-            element.setAttribute('cy', initialY + radius);
+            element.setAttribute('cx', radius); // Position relative to group's origin
+            element.setAttribute('cy', radius); // Position relative to group's origin
             element.setAttribute('r', radius);
             break;
         case 'ellipse':
             element = document.createElementNS(SVG_NS, 'ellipse');
-            element.setAttribute('cx', initialX + initialWidth / 2);
-            element.setAttribute('cy', initialY + initialHeight / 2);
+            element.setAttribute('cx', initialWidth / 2); // Position relative to group's origin
+            element.setAttribute('cy', initialHeight / 2); // Position relative to group's origin
             element.setAttribute('rx', initialWidth / 2);
             element.setAttribute('ry', initialHeight / 2);
             break;
@@ -38,10 +217,11 @@ export function createShapeGroup(shapeType, color, label, initialX, initialY, in
             element = document.createElementNS(SVG_NS, 'polygon');
             const side = Math.min(initialWidth, initialHeight); // Use smaller dimension as side length
             const h = (Math.sqrt(3) / 2) * side; // Height of equilateral triangle
+            // Points are now relative to (0,0) of the group
             const points = [
-                `${initialX},${initialY + h}`,
-                `${initialX + side / 2},${initialY}`,
-                `${initialX + side},${initialY + h}`
+                `0,${h}`,
+                `${side / 2},0`,
+                `${side},${h}`
             ].join(' ');
             element.setAttribute('points', points);
             break;
@@ -49,69 +229,100 @@ export function createShapeGroup(shapeType, color, label, initialX, initialY, in
             return null;
     }
 
-    if (shapeType === 'freeform') {
-        // For freeform, delegate to createFreeformPath
-        return createFreeformPath([], color, label);
-    } else {
-        // For other shapes, continue with existing logic
-        element.setAttribute('fill', color);
-        element.setAttribute('stroke', strokeColor); // Set stroke color
-        element.setAttribute('stroke-width', strokeWidth); // Set stroke width
-        element.setAttribute('class', 'shape-body');
+    // For other shapes, continue with existing logic
+    element.setAttribute('fill', color);
+    element.setAttribute('stroke', strokeColor); // Set stroke color
+    element.setAttribute('stroke-width', strokeWidth); // Set stroke width
+    element.setAttribute('class', 'shape-body');
 
-        const group = document.createElementNS(SVG_NS, 'g');
-        group.setAttribute('data-label', label);
-        group.setAttribute('data-shape-type', shapeType);
-        group.setAttribute('data-color', color);
-        group.setAttribute('data-stroke-color', strokeColor); // Store stroke color
-        group.setAttribute('data-stroke-width', strokeWidth); // Store stroke width
-        group.setAttribute('class', 'shape-group');
+    const group = document.createElementNS(SVG_NS, 'g');
+    group.setAttribute('id', groupId); // Set the unique ID
+    group.setAttribute('data-label', label);
+    group.setAttribute('data-shape-type', shapeType);
+    group.setAttribute('data-color', color);
+    group.setAttribute('data-stroke-color', strokeColor); // Store stroke color
+    group.setAttribute('data-stroke-width', strokeWidth); // Store stroke width
+    group.setAttribute('data-emotion', ''); // Initialize emotion data attribute
+    group.setAttribute('data-action', ''); // Initialize action data attribute
+    group.setAttribute('data-eye-color', ''); // Initialize eye color data attribute
+    group.setAttribute('data-clothing', ''); // Initialize clothing data attribute
+    group.setAttribute('data-hair-style', ''); // Initialize hair style data attribute
+    group.setAttribute('data-hair-color', ''); // Initialize hair color data attribute
+    group.setAttribute('data-no-color', noColor.toString()); // Store noColor state
+    group.setAttribute('data-prompt-prefix', promptPrefix); // Store promptPrefix
+    group.setAttribute('data-prompt-suffix', promptSuffix); // Store promptSuffix
+    group.setAttribute('class', 'shape-group');
+    // Apply initial position as a translate transform to the group
+    group.setAttribute('transform', `translate(${initialX},${initialY})`);
 
-        text = document.createElementNS(SVG_NS, 'text');
-        text.setAttribute('fill', 'black');
-        text.setAttribute('font-size', '12');
-        text.setAttribute('text-anchor', 'middle');
-        text.setAttribute('alignment-baseline', 'middle');
-        text.textContent = label;
-        text.classList.add('shape-label');
+    text = document.createElementNS(SVG_NS, 'text');
+    text.setAttribute('fill', 'black');
+    text.setAttribute('font-size', '12');
+    text.setAttribute('text-anchor', 'middle');
+    text.setAttribute('alignment-baseline', 'middle');
+    text.textContent = label;
+    text.classList.add('shape-label');
 
-        group.appendChild(element);
-        group.appendChild(text);
+    group.appendChild(element);
+    group.appendChild(text);
 
-        // Ajouter des poignées de redimensionnement au groupe
-        const handles = [];
-        for (let i = 0; i < 4; i++) {
-            const handle = document.createElementNS(SVG_NS, 'rect');
-            handle.setAttribute('width', 8);
-            handle.setAttribute('height', 8);
-            handle.setAttribute('rx', 4); // For rounded corners to make it circular
-            handle.setAttribute('ry', 4); // For rounded corners to make it circular
-            handle.setAttribute('fill', 'blue');
-            handle.setAttribute('stroke', 'white');
-            handle.setAttribute('stroke-width', 1);
-            handle.setAttribute('class', 'resize-handle');
-            handle.setAttribute('data-handle', i); // 0: TL, 1: TR, 2: BR, 3: BL
-            group.appendChild(handle);
-            handles.push(handle);
-        }
-        group._handles = handles; // Stocke les poignées pour un accès facile
-        group._shapeBody = element; // Stocke la forme pour un accès facile
-        group._labelText = text; // Stocke le texte pour un accès facile
-
-        svgCanvas.appendChild(group);
-        updateShapeAppearance(group); // Met à jour la position des poignées et du texte
-
-        return group;
+    // Ajouter des poignées de redimensionnement au groupe
+    const handles = [];
+    for (let i = 0; i < 4; i++) {
+        const handle = document.createElementNS(SVG_NS, 'rect');
+        handle.setAttribute('width', 8);
+        handle.setAttribute('height', 8);
+        handle.setAttribute('rx', 4); // For rounded corners to make it circular
+        handle.setAttribute('ry', 4); // For rounded corners to make it circular
+        handle.setAttribute('fill', 'blue');
+        handle.setAttribute('stroke', 'white');
+        handle.setAttribute('stroke-width', 1);
+        handle.setAttribute('class', 'resize-handle');
+        handle.setAttribute('data-handle', i); // 0: TL, 1: TR, 2: BR, 3: BL
+        group.appendChild(handle);
+        handles.push(handle);
     }
+    group._handles = handles; // Stocke les poignées pour un accès facile
+    group._shapeBody = element; // Stocke la forme pour un accès facile
+    group._labelText = text; // Stocke le texte pour un accès facile
+
+    // Add the yellow "ID card" icon
+    const idCardIcon = document.createElementNS(SVG_NS, 'rect');
+    idCardIcon.setAttribute('width', 16);
+    idCardIcon.setAttribute('height', 16);
+    idCardIcon.setAttribute('fill', 'yellow');
+    idCardIcon.setAttribute('class', 'id-card-icon');
+    idCardIcon.setAttribute('visibility', 'hidden'); // Hidden by default
+    group.appendChild(idCardIcon);
+    group._idCardIcon = idCardIcon; // Store reference
+    setIdCardIconClickListener(idCardIcon, group); // Attach click listener
+
+    svgCanvas.appendChild(group);
+    updateShapeAppearance(group); // Met à jour la position des poignées et du texte
+
+    return group;
 }
 
-export function createFreeformPath(pathData, color, label, strokeColor = '#000000', strokeWidth = 2) {
+export function createFreeformPath(pathData, color, label, strokeColor = '#000000', strokeWidth = 2, existingId = null, noColor = false, promptPrefix = '', promptSuffix = '') {
+    // Use existing ID or generate a new one
+    const groupId = existingId || `freeform-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
     const group = document.createElementNS(SVG_NS, 'g');
+    group.setAttribute('id', groupId); // Set the unique ID
     group.setAttribute('data-label', label);
     group.setAttribute('data-shape-type', 'freeform');
     group.setAttribute('data-color', color);
     group.setAttribute('data-stroke-color', strokeColor); // Store stroke color
     group.setAttribute('data-stroke-width', strokeWidth); // Store stroke width
+    group.setAttribute('data-emotion', ''); // Initialize emotion data attribute
+    group.setAttribute('data-action', ''); // Initialize action data attribute
+    group.setAttribute('data-eye-color', ''); // Initialize eye color data attribute
+    group.setAttribute('data-clothing', ''); // Initialize clothing data attribute
+    group.setAttribute('data-hair-style', ''); // Initialize hair style data attribute
+    group.setAttribute('data-hair-color', ''); // Initialize hair color data attribute
+    group.setAttribute('data-no-color', noColor.toString()); // Store noColor state
+    group.setAttribute('data-prompt-prefix', promptPrefix); // Store promptPrefix
+    group.setAttribute('data-prompt-suffix', promptSuffix); // Store promptSuffix
     group.setAttribute('class', 'shape-group');
 
     const pathElement = document.createElementNS(SVG_NS, 'path');
@@ -138,6 +349,17 @@ export function createFreeformPath(pathData, color, label, strokeColor = '#00000
 
     // Freeform paths won't have resize handles initially, their handles are control points
     group._handles = []; // Initialize empty handles array
+
+    // Add the yellow "ID card" icon
+    const idCardIcon = document.createElementNS(SVG_NS, 'rect');
+    idCardIcon.setAttribute('width', 16);
+    idCardIcon.setAttribute('height', 16);
+    idCardIcon.setAttribute('fill', 'yellow');
+    idCardIcon.setAttribute('class', 'id-card-icon');
+    idCardIcon.setAttribute('visibility', 'hidden'); // Hidden by default
+    group.appendChild(idCardIcon);
+    group._idCardIcon = idCardIcon; // Store reference
+    setIdCardIconClickListener(idCardIcon, group); // Attach click listener
 
     svgCanvas.appendChild(group);
     updateShapeAppearance(group); // Update text position
@@ -314,14 +536,23 @@ export function getFreeformPathData(pathElement) {
 
 export function updateShapeAppearance(group) {
     if (!group) return;
+    console.log("updateShapeAppearance called for group:", group.id); // Debug log
 
     const handles = group._handles;
     const text = group._labelText;
     const shapeBody = group._shapeBody;
 
+    if (!shapeBody) { // DEBUG: Check if shapeBody is found
+        console.warn("updateShapeAppearance: shapeBody not found for group", group.id);
+        return;
+    }
+
     // Get the untransformed bounding box of the shape's body
     const bbox = shapeBody.getBBox();
-    if (!bbox) return;
+    if (!bbox) { // DEBUG: Check if bbox is valid
+        console.warn("updateShapeAppearance: BBox not found for group", group.id);
+        return;
+    }
 
     // The handles and text are children of the group, so their positions are relative to the group's origin.
     // We can directly use the bbox coordinates for positioning.
@@ -354,6 +585,17 @@ export function updateShapeAppearance(group) {
         text.transform.baseVal.clear();
     }
     
+    // Update ID card icon position and visibility
+    const idCardIcon = group._idCardIcon;
+    if (idCardIcon) {
+        // Position it at the top-right of the bounding box
+        idCardIcon.setAttribute('x', bbox.x + bbox.width - idCardIcon.getAttribute('width'));
+        idCardIcon.setAttribute('y', bbox.y);
+        
+        // Make it visible only when the shape is selected
+        idCardIcon.setAttribute('visibility', selectedShapeGroup === group ? 'visible' : 'hidden');
+    }
+
     // Ensure the shape group itself can receive mouse events
     // For freeform shapes, pointer-events are managed differently (e.g., on points)
     if (group.getAttribute('data-shape-type') !== 'freeform') {
@@ -526,16 +768,30 @@ export function clearFreeformPointVisuals() {
 
 
 export function setSelectedShapeGroup(group) {
+    const objectIdCard = document.getElementById('object-id-card'); // Get reference to the floating panel
+
     if (selectedShapeGroup) {
         selectedShapeGroup.classList.remove('selected');
+        // Hide the ID card icon when deselecting
+        if (selectedShapeGroup._idCardIcon) {
+            selectedShapeGroup._idCardIcon.setAttribute('visibility', 'hidden');
+        }
         // Clear freeform point visuals if deselecting a freeform shape
         if (selectedShapeGroup.getAttribute('data-shape-type') === 'freeform') {
             clearFreeformPointVisuals();
         }
+        // Hide the floating panel when deselecting any shape
+        objectIdCard.style.display = 'none';
     }
     selectedShapeGroup = group;
     if (selectedShapeGroup) {
         selectedShapeGroup.classList.add('selected');
+        // Show the ID card icon when selecting
+        if (selectedShapeGroup._idCardIcon) {
+            selectedShapeGroup._idCardIcon.setAttribute('visibility', 'visible');
+            // Ensure its position is updated immediately upon selection
+            updateShapeAppearance(selectedShapeGroup);
+        }
     }
     return selectedShapeGroup;
 }
@@ -551,53 +807,42 @@ export function getShapeData(group) {
     const bbox = shapeBody.getBBox();
 
     // Get current transform values
-    let currentX = 0;
-    let currentY = 0;
-    let currentScaleX = 1;
-    let currentScaleY = 1;
+    const shapeType = group.getAttribute('data-shape-type');
+    let initialWidth, initialHeight;
+
+    // Get current transform values
+    let translateX = 0;
+    let translateY = 0;
+    let scaleX = 1;
+    let scaleY = 1;
 
     const transformList = group.transform.baseVal;
     for (let i = 0; i < transformList.numberOfItems; i++) {
         const transform = transformList.getItem(i);
         if (transform.type === SVGTransform.SVG_TRANSFORM_TRANSLATE) {
-            currentX = transform.matrix.e;
-            currentY = transform.matrix.f;
+            translateX = transform.matrix.e;
+            translateY = transform.matrix.f;
         } else if (transform.type === SVGTransform.SVG_TRANSFORM_SCALE) {
-            currentScaleX = transform.matrix.a;
-            currentScaleY = transform.matrix.d;
+            scaleX = transform.matrix.a;
+            scaleY = transform.matrix.d;
         }
     }
 
-    // For shapes like circle and ellipse, the initialX/Y are cx/cy and width/height are derived from r/rx/ry.
-    // We need to store the actual x, y, width, height that createShapeGroup expects.
-    let initialX, initialY, initialWidth, initialHeight;
-    const shapeType = group.getAttribute('data-shape-type');
-
     if (shapeType === 'rect') {
-        initialX = parseFloat(shapeBody.getAttribute('x'));
-        initialY = parseFloat(shapeBody.getAttribute('y'));
         initialWidth = parseFloat(shapeBody.getAttribute('width'));
         initialHeight = parseFloat(shapeBody.getAttribute('height'));
     } else if (shapeType === 'circle') {
         const r = parseFloat(shapeBody.getAttribute('r'));
-        initialX = parseFloat(shapeBody.getAttribute('cx')) - r;
-        initialY = parseFloat(shapeBody.getAttribute('cy')) - r;
         initialWidth = r * 2;
         initialHeight = r * 2;
     } else if (shapeType === 'ellipse') {
         const rx = parseFloat(shapeBody.getAttribute('rx'));
         const ry = parseFloat(shapeBody.getAttribute('ry'));
-        initialX = parseFloat(shapeBody.getAttribute('cx')) - rx;
-        initialY = parseFloat(shapeBody.getAttribute('cy')) - ry;
         initialWidth = rx * 2;
         initialHeight = ry * 2;
     } else if (shapeType === 'polygon') {
-        // For polygons (triangle), we need to derive effective width/height and x/y
-        // from its points, assuming it's an equilateral triangle created with specific logic.
-        // This is a simplification; a more robust solution would store points directly.
-        initialX = parseFloat(shapeBody.getAttribute('points').split(' ')[0].split(',')[0]);
-        initialY = parseFloat(shapeBody.getAttribute('points').split(' ')[1].split(',')[1]);
-        initialWidth = bbox.width; // Use bounding box for width/height
+        // For polygons, use the bounding box of the shape body as initial width/height
+        initialWidth = bbox.width;
         initialHeight = bbox.height;
     }
 
@@ -605,10 +850,19 @@ export function getShapeData(group) {
         type: shapeType,
         color: group.getAttribute('data-color'),
         label: group.getAttribute('data-label'),
-        x: initialX + currentX, // Base position + current translation
-        y: initialY + currentY, // Base position + current translation
-        width: initialWidth * currentScaleX, // Base width * current scale
-        height: initialHeight * currentScaleY // Base height * current scale
+        emotion: group.getAttribute('data-emotion'), // Retrieve emotion
+        action: group.getAttribute('data-action'),   // Retrieve action
+        eyeColor: group.getAttribute('data-eye-color'), // Retrieve eye color
+        clothing: group.getAttribute('data-clothing'), // Retrieve clothing
+        hairStyle: group.getAttribute('data-hair-style'), // Retrieve hair style
+        hairColor: group.getAttribute('data-hair-color'), // Retrieve hair color
+        noColor: group.getAttribute('data-no-color') === 'true', // Retrieve noColor state
+        promptPrefix: group.getAttribute('data-prompt-prefix'), // Retrieve prompt prefix
+        promptSuffix: group.getAttribute('data-prompt-suffix'), // Retrieve prompt suffix
+        x: translateX, // Position is now directly the group's translate X
+        y: translateY, // Position is now directly the group's translate Y
+        width: initialWidth * scaleX, // Base width * current scale
+        height: initialHeight * scaleY // Base height * current scale
     };
 }
 
@@ -627,6 +881,7 @@ export function clearCanvas() {
         svgCanvas.removeChild(svgCanvas.firstChild);
     }
     selectedShapeGroup = null;
+    currentGradient = null; // Reset la variable interne du fond
 
     // Remove any existing gradient definitions
     const oldDefs = svgCanvas.querySelector('defs');
@@ -635,10 +890,11 @@ export function clearCanvas() {
     }
 }
 
-export function updateShapeColor(group, newColor) {
+export function updateShapeColor(group, newColor, noColorState) {
     if (group && group._shapeBody) {
         group._shapeBody.setAttribute('fill', newColor);
         group.setAttribute('data-color', newColor); // Update data-color attribute
+        group.setAttribute('data-no-color', noColorState.toString()); // Update noColor attribute
     }
 }
 
@@ -672,12 +928,18 @@ export function getCanvasDimensions() {
 }
 
 export function setCanvasBackgroundGradient(colors) {
+    currentGradient = colors; // Met à jour la variable interne
+
     if (!svgCanvas || !colors || colors.length === 0) {
         // Fallback to no background or clear previous if colors are invalid
         svgCanvas.style.fill = ''; // Clear any direct fill
         const oldDefs = svgCanvas.querySelector('defs');
         if (oldDefs) {
             oldDefs.remove();
+        }
+        const bgRect = svgCanvas.querySelector('#backgroundRect');
+        if (bgRect) {
+            bgRect.remove();
         }
         return;
     }
