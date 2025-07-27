@@ -1250,7 +1250,7 @@ function handleExportPrompt() {
         if (shapePhrases.length === 1) {
             elementsDescription = shapePhrases[0];
         } else if (shapePhrases.length === 2) {
-            elementsDescription = `${shapePhrases[0]} and ${elementsDescription[1]}`;
+            elementsDescription = `${shapePhrases[0]} and ${shapePhrases[1]}`;
         } else {
             elementsDescription = shapePhrases.slice(0, -1).join(', ') + `, and ${shapePhrases[shapePhrases.length - 1]}`;
         }
@@ -1506,6 +1506,7 @@ function handleExportPng() {
     const svgCanvas = SvgManager.getSvgCanvas();
     const selectedShape = SvgManager.getSelectedShapeGroup();
 
+    // Temporarily remove selection and handles for a clean export
     const handlesToRestore = [];
     const allShapeGroups = svgCanvas.querySelectorAll('.shape-group');
     allShapeGroups.forEach(group => {
@@ -1518,30 +1519,61 @@ function handleExportPng() {
                 }
             });
         }
-    });
-
-    allShapeGroups.forEach(group => {
         group.classList.remove('selected');
     });
 
     const svgString = new XMLSerializer().serializeToString(svgCanvas);
-    const blob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const downloadLink = document.createElement('a');
-    downloadLink.href = url;
-    downloadLink.download = 'shap_prompteur_design.png';
-    document.body.appendChild(downloadLink);
-    downloadLink.click();
-    document.body.removeChild(downloadLink);
-    URL.revokeObjectURL(url);
+    const svgBlob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(svgBlob);
 
-    handlesToRestore.forEach(item => {
-        item.group.appendChild(item.handle);
-    });
+    const img = new Image();
+    img.onload = () => {
+        // Create a canvas element
+        const canvas = document.createElement('canvas');
+        canvas.width = svgCanvas.width.baseVal.value;
+        canvas.height = svgCanvas.height.baseVal.value;
+        const ctx = canvas.getContext('2d');
 
-    if (selectedShape) {
-        selectedShape.classList.add('selected');
-    }
+        // Draw the image onto the canvas
+        ctx.drawImage(img, 0, 0);
+
+        // Get the data URL of the canvas as a PNG
+        const pngUrl = canvas.toDataURL('image/png');
+
+        // Create a link to download the PNG
+        const downloadLink = document.createElement('a');
+        downloadLink.href = pngUrl;
+        downloadLink.download = 'shap_prompteur_design.png';
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+
+        // Clean up the object URL
+        URL.revokeObjectURL(url);
+
+        // Restore handles and selection
+        handlesToRestore.forEach(item => {
+            item.group.appendChild(item.handle);
+        });
+        if (selectedShape) {
+            selectedShape.classList.add('selected');
+        }
+    };
+
+    img.onerror = (e) => {
+        console.error("Error loading SVG image for PNG conversion:", e);
+        alert("Failed to convert SVG to PNG. Please try again.");
+
+        // Restore handles and selection even on error
+        handlesToRestore.forEach(item => {
+            item.group.appendChild(item.handle);
+        });
+        if (selectedShape) {
+            selectedShape.classList.add('selected');
+        }
+    };
+
+    img.src = url;
 }
 
 export function setIdCardIconClickListener(idCardIcon, shapeGroup) {

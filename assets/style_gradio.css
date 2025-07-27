@@ -303,7 +303,8 @@ select {
     display: flex;
     flex-direction: column;
     gap: 15px;
-    overflow: hidden; /* Clip content that overflows the fixed width */
+    overflow-y: auto; /* Allow vertical scrolling */
+    overflow-x: hidden; /* Prevent horizontal scrolling */
 }
 
 #right-sidebar h3 {
