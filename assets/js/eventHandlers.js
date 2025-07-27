@@ -774,6 +774,7 @@ function setupCustomDropdown(dropdownId, optionsData, onSelectCallback = null, i
             optionElement.classList.add('dropdown-option');
             optionElement.textContent = optionData.name;
             optionElement.setAttribute('data-value', optionData.value || ''); // Ensure data-value is empty string for "None"
+            optionElement.setAttribute('title', optionData.name); // Add title for tooltip
             optionElement.addEventListener('click', () => {
                 selectedValueDisplay.textContent = optionData.name;
                 selectedValueDisplay.setAttribute('data-value', optionData.value || ''); // Ensure data-value is empty string for "None"
