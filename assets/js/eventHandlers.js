@@ -205,28 +205,83 @@ export function setupEventListeners(historyMgr) {
     const cameraAngleButtonsContainer = document.getElementById('camera-angle-buttons');
     populateCameraAngles(cameraAngleButtonsContainer);
 
-    // --- Drag and Drop for Shape Creation ---
+    // --- Custom Drag and Drop for Shape Creation ---
+    let isCustomDragging = false;
+    let draggedShapeType = null;
+    let ghostElement = null; // Visual representation of the dragged shape
+
     const shapeIcons = document.querySelectorAll('.shape-icon');
     shapeIcons.forEach(icon => {
-        icon.addEventListener('dragstart', (e) => {
-            e.dataTransfer.setData('text/plain', e.target.dataset.shapeType);
-            e.dataTransfer.effectAllowed = 'copy';
+        icon.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return; // Only left mouse button
+
+            isCustomDragging = true;
+            draggedShapeType = icon.dataset.shapeType;
+            console.log('Custom drag started for shape type:', draggedShapeType);
+
+            // Create a ghost element
+            ghostElement = document.createElement('div');
+            ghostElement.classList.add('dragging-ghost');
+            ghostElement.textContent = icon.textContent; // Copy the icon's text
+            Object.assign(ghostElement.style, {
+                position: 'fixed',
+                pointerEvents: 'none', // Important: allow events to pass through
+                zIndex: 1000,
+                opacity: 0.7,
+                backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                color: 'white',
+                padding: '10px',
+                borderRadius: '5px',
+                transform: 'translate(-50%, -50%)', // Center the ghost on the cursor
+                fontSize: '24px' // Match shape icon size
+            });
+            document.body.appendChild(ghostElement);
+
+            // Update ghost position immediately
+            ghostElement.style.left = `${e.clientX}px`;
+            ghostElement.style.top = `${e.clientY}px`;
+
+            // Add global mousemove and mouseup listeners
+            document.addEventListener('mousemove', handleCustomDragMove);
+            document.addEventListener('mouseup', handleCustomDrop);
         });
     });
 
-    svgCanvas.addEventListener('dragover', (e) => {
-        e.preventDefault(); // Allow dropping
-        e.dataTransfer.dropEffect = 'copy';
-    });
+    function handleCustomDragMove(e) {
+        if (!isCustomDragging || !ghostElement) return;
 
-    svgCanvas.addEventListener('drop', (e) => {
-        e.preventDefault();
-        const shapeType = e.dataTransfer.getData('text/plain');
+        ghostElement.style.left = `${e.clientX}px`;
+        ghostElement.style.top = `${e.clientY}px`;
+    }
+
+    function handleCustomDrop(e) {
+        if (!isCustomDragging) return;
+
+        isCustomDragging = false;
+        if (ghostElement) {
+            ghostElement.remove();
+            ghostElement = null;
+        }
+
+        document.removeEventListener('mousemove', handleCustomDragMove);
+        document.removeEventListener('mouseup', handleCustomDrop);
+
+        const svgCanvas = SvgManager.getSvgCanvas();
         const svgRect = svgCanvas.getBoundingClientRect();
-        const x = e.clientX - svgRect.left;
-        const y = e.clientY - svgRect.top;
-        createShape(shapeType, x, y);
-    });
+
+        // Check if the drop occurred over the SVG canvas
+        if (e.clientX >= svgRect.left && e.clientX <= svgRect.right &&
+            e.clientY >= svgRect.top && e.clientY <= svgRect.bottom) {
+            
+            const x = e.clientX - svgRect.left;
+            const y = e.clientY - svgRect.top;
+            console.log('Custom drop successful for shape:', draggedShapeType, 'at coordinates:', { x, y });
+            createShape(draggedShapeType, x, y);
+        } else {
+            console.log('Custom drop occurred outside SVG canvas.');
+        }
+        draggedShapeType = null;
+    }
     
     // Freeform mode button
     const freeformBtn = document.getElementById('freeform-mode-btn');

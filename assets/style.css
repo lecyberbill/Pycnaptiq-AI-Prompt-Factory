@@ -389,9 +389,11 @@ body {
 
 #svg-canvas {
     border: none; /* No border */
-    background-color: #ebf0f7; /* Lighter background for canvas area */
+    background-color: transparent; /* Ensure transparent background */
+    fill: none; /* Ensure no fill is applied to the SVG element itself */
     border-radius: 15px; /* Rounded corners */
-    box-shadow: 8px 8px 16px #1a1e27, -8px -8px 16px #6a707a;/* Neumorphic shadow */
+    box-shadow: 8px 8px 16px #1a1e27, -8px -8-16px #6a707a;/* Neumorphic shadow */
+    pointer-events: all; /* Explicitly ensure it receives pointer events */
 }
 
 #prompt-export-controls {
@@ -541,6 +543,12 @@ body {
     stroke-width: 1;
     rx: 4; /* Rounded corners for the yellow rectangle */
     ry: 4;
+    pointer-events: none; /* Prevent it from capturing events when hidden */
+}
+
+/* Make it clickable only when the parent shape-group is selected */
+.shape-group.selected .id-card-icon {
+    pointer-events: all;
 }
 
 .id-card-icon:hover {
