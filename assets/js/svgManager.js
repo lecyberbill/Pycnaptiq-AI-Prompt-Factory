@@ -90,11 +90,6 @@ export function getCanvasStateAsData() {
                 const r = parseFloat(shapeBody.getAttribute('r'));
                 initialWidth = r * 2;
                 initialHeight = r * 2;
-            } else if (shapeType === 'ellipse') {
-                const rx = parseFloat(shapeBody.getAttribute('rx'));
-                const ry = parseFloat(shapeBody.getAttribute('ry'));
-                initialWidth = rx * 2;
-                initialHeight = ry * 2;
             } else if (shapeType === 'polygon') {
                 const bbox = shapeBody.getBBox();
                 initialWidth = bbox.width;
@@ -205,13 +200,6 @@ export function createShapeGroup(shapeType, color, label, initialX, initialY, in
             element.setAttribute('cx', radius); // Position relative to group's origin
             element.setAttribute('cy', radius); // Position relative to group's origin
             element.setAttribute('r', radius);
-            break;
-        case 'ellipse':
-            element = document.createElementNS(SVG_NS, 'ellipse');
-            element.setAttribute('cx', initialWidth / 2); // Position relative to group's origin
-            element.setAttribute('cy', initialHeight / 2); // Position relative to group's origin
-            element.setAttribute('rx', initialWidth / 2);
-            element.setAttribute('ry', initialHeight / 2);
             break;
         case 'polygon': // Equilateral triangle
             element = document.createElementNS(SVG_NS, 'polygon');
@@ -835,11 +823,6 @@ export function getShapeData(group) {
         const r = parseFloat(shapeBody.getAttribute('r'));
         initialWidth = r * 2;
         initialHeight = r * 2;
-    } else if (shapeType === 'ellipse') {
-        const rx = parseFloat(shapeBody.getAttribute('rx'));
-        const ry = parseFloat(shapeBody.getAttribute('ry'));
-        initialWidth = rx * 2;
-        initialHeight = ry * 2;
     } else if (shapeType === 'polygon') {
         // For polygons, use the bounding box of the shape body as initial width/height
         initialWidth = bbox.width;
@@ -1018,3 +1001,5 @@ export function sendBackward(group) {
         svgCanvas.insertBefore(group, group.previousSibling);
     }
 }
+
+

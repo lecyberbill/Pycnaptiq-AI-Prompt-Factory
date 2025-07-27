@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pycnaptiq-AI Prompt Factory</title>
+    <link rel="stylesheet" href="assets/style_gradio.css" data-theme="gradio">
 </head>
 <body>
     <div id="main-container">
@@ -13,17 +14,13 @@
                 <!-- Shape Management -->
                 <div id="shape-management" class="control-section">
                     <h3>Shape Controls</h3>
-                    <div class="control-group">
-                    <div class="custom-dropdown" id="shape-type-dropdown">
-                        <div class="dropdown-selected-value" data-value="rect">Rectangle</div>
-                        <div class="dropdown-options">
-                            <div class="dropdown-option" data-value="rect">Rectangle</div>
-                            <div class="dropdown-option" data-value="circle">Circle</div>
-                            <div class="dropdown-option" data-value="ellipse">Ellipse</div>
-                            <div class="dropdown-option" data-value="polygon">Triangle</div>
-                            <div class="dropdown-option" data-value="freeform">Freeform</div>
-                        </div>
+                    <div id="shape-palette" class="control-group">
+                        <div class="shape-icon" draggable="true" data-shape-type="rect" title="Rectangle">■</div>
+                        <div class="shape-icon" draggable="true" data-shape-type="circle" title="Circle">●</div>
+                        <div class="shape-icon" draggable="true" data-shape-type="polygon" title="Triangle">▲</div>
                     </div>
+                    <div class="control-group">
+                        <button id="freeform-mode-btn">Freeform</button>
                     </div>
                     <div class="control-group">
                         <input type="text" id="shape-label" placeholder="Label">

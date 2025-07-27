@@ -14,7 +14,7 @@ let undoBtn, redoBtn; // New variables for undo/redo buttons
 let strokeColorInput, applyStrokeToAllBtn, copyPromptBtn; // New variables for stroke color input, button, and copy prompt button
 let noFillColorCheckbox; // Declared globally
 
-let shapeTypeDropdownValue = 'rect'; // Store the selected shape type
+let shapeTypeDropdownValue = 'rect'; // DEPRECATED: Will be replaced by direct interaction
 let backgroundCategoryDropdownValue = null; // Store selected background category
 let backgroundIdeaDropdownValue = null; // Store selected background idea (will be removed after refactoring)
 let selectedBackgroundIdea = null; // Store the selected background idea for prompt generation
@@ -85,7 +85,7 @@ export function setupEventListeners(historyMgr) {
 
     // Removed isDraggingIdCard variables and related event listeners as the panel is no longer floating freely.
     // The panel is now embedded in the right sidebar.
-    createShapeBtn.addEventListener('click', handleAddShape);
+    createShapeBtn.addEventListener('click', () => createShape(shapeTypeDropdownValue)); // Keep button for now, creates shape in center
     deleteShapeBtn.addEventListener('click', handleDeleteShape);
     clearCanvasBtn.addEventListener('click', handleResetCanvas);
     exportPromptBtn.addEventListener('click', handleExportPrompt);
@@ -205,48 +205,54 @@ export function setupEventListeners(historyMgr) {
     const cameraAngleButtonsContainer = document.getElementById('camera-angle-buttons');
     populateCameraAngles(cameraAngleButtonsContainer);
 
-    // Setup custom dropdowns
-    // Shape Type
-    const shapeTypeDropdown = setupCustomDropdown('shape-type-dropdown', [
-        {name: 'Rectangle', value: 'rect'},
-        {name: 'Circle', value: 'circle'},
-        {name: 'Ellipse', value: 'ellipse'},
-        {name: 'Triangle', value: 'polygon'},
-        {name: 'Freeform', value: 'freeform'} // Added Freeform option here as well
-    ], (selectedObject) => {
-        shapeTypeDropdownValue = selectedObject.value;
-        if (selectedObject.value === 'freeform') {
-            const selectedShape = SvgManager.getSelectedShapeGroup();
-            if (selectedShape && selectedShape.getAttribute('data-shape-type') === 'freeform') {
-                // If a freeform shape is already selected, enter edit mode for it
-                isDrawingFreeform = false; // Not drawing, but editing
-                currentFreeformGroup = selectedShape;
-                currentFreeformPathElement = selectedShape._shapeBody;
-                currentFreeformPathData = SvgManager.getFreeformPathData(currentFreeformPathElement);
-                DragAndResize.enableDragAndResize(currentFreeformGroup);
-                SvgManager.setSelectedShapeGroup(currentFreeformGroup); // Ensure points are visible
-            } else {
-                // No freeform shape selected, prepare to draw a new one
-                isDrawingFreeform = true; // Ready to draw
-                currentFreeformGroup = null;
-                currentFreeformPathData = [];
-                currentFreeformPathElement = null;
-                SvgManager.clearFreeformPointVisuals();
-                SvgManager.setSelectedShapeGroup(null); // Deselect any non-freeform shape
-            }
+    // --- Drag and Drop for Shape Creation ---
+    const shapeIcons = document.querySelectorAll('.shape-icon');
+    shapeIcons.forEach(icon => {
+        icon.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/plain', e.target.dataset.shapeType);
+            e.dataTransfer.effectAllowed = 'copy';
+        });
+    });
+
+    svgCanvas.addEventListener('dragover', (e) => {
+        e.preventDefault(); // Allow dropping
+        e.dataTransfer.dropEffect = 'copy';
+    });
+
+    svgCanvas.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const shapeType = e.dataTransfer.getData('text/plain');
+        const svgRect = svgCanvas.getBoundingClientRect();
+        const x = e.clientX - svgRect.left;
+        const y = e.clientY - svgRect.top;
+        createShape(shapeType, x, y);
+    });
+    
+    // Freeform mode button
+    const freeformBtn = document.getElementById('freeform-mode-btn');
+    freeformBtn.addEventListener('click', () => {
+        shapeTypeDropdownValue = 'freeform';
+        const selectedShape = SvgManager.getSelectedShapeGroup();
+        if (selectedShape && selectedShape.getAttribute('data-shape-type') === 'freeform') {
+            // If a freeform shape is already selected, enter edit mode for it
+            isDrawingFreeform = false; // Not drawing, but editing
+            currentFreeformGroup = selectedShape;
+            currentFreeformPathElement = selectedShape._shapeBody;
+            currentFreeformPathData = SvgManager.getFreeformPathData(currentFreeformPathElement);
+            DragAndResize.enableDragAndResize(currentFreeformGroup);
+            SvgManager.setSelectedShapeGroup(currentFreeformGroup); // Ensure points are visible
         } else {
-            // Clear freeform specific state when switching to other shape types
-            isDrawingFreeform = false;
+            // No freeform shape selected, prepare to draw a new one
+            isDrawingFreeform = true; // Ready to draw
             currentFreeformGroup = null;
             currentFreeformPathData = [];
             currentFreeformPathElement = null;
             SvgManager.clearFreeformPointVisuals();
+            SvgManager.setSelectedShapeGroup(null); // Deselect any non-freeform shape
         }
         updateAllButtonStates(); // Update button states based on new mode
     });
-    shapeTypeDropdownValue = shapeTypeDropdown.getSelectedValue();
-    // The onSelect logic is now passed directly into setupCustomDropdown
-
+    
     // Background Category
     let backgroundIdeaDropdownInstance; 
 
@@ -300,7 +306,7 @@ export function setupEventListeners(historyMgr) {
 
     // Lighting & Mood
     const lightingMoodDropdown = setupCustomDropdown('lighting-mood-dropdown',
-        BackgroundManager.getLightingAndMoods().map(mood => ({name: mood.name, value: mood.prompt_phrase})),
+        BackgroundManager.getLightingAndMoods().map(mood => ({name: mood.name, value: mood.prompt_phrase, image_path: mood.image_path})),
         (selectedObject) => {
             selectedLightingMood = selectedObject.value;
             handleExportPrompt();
@@ -310,7 +316,7 @@ export function setupEventListeners(historyMgr) {
 
     // Art Style/Medium
     const artStyleDropdown = setupCustomDropdown('art-style-dropdown',
-        BackgroundManager.getArtStyles().map(style => ({name: style.name, value: style.prompt_phrase})),
+        BackgroundManager.getArtStyles().map(style => ({name: style.name, value: style.prompt_phrase, image_path: style.image_path})),
         (selectedObject) => {
             selectedArtStyle = selectedObject.value;
             handleExportPrompt();
@@ -772,12 +778,41 @@ function setupCustomDropdown(dropdownId, optionsData, onSelectCallback = null, i
         newOptionsData.forEach(optionData => {
             const optionElement = document.createElement('div');
             optionElement.classList.add('dropdown-option');
-            optionElement.textContent = optionData.name;
-            optionElement.setAttribute('data-value', optionData.value || ''); // Ensure data-value is empty string for "None"
-            optionElement.setAttribute('title', optionData.name); // Add title for tooltip
+            optionElement.setAttribute('data-value', optionData.value || '');
+            optionElement.setAttribute('title', optionData.name);
+
+            // Check if there's an image path
+            if (optionData.image_path) {
+                const img = document.createElement('img');
+                img.src = optionData.image_path;
+                img.classList.add('dropdown-image'); // Add a class for CSS styling
+                optionElement.appendChild(img);
+            }
+
+            const textSpan = document.createElement('span');
+            textSpan.textContent = optionData.name;
+            textSpan.classList.add('dropdown-text'); // Add a class for CSS styling
+            optionElement.appendChild(textSpan);
+
             optionElement.addEventListener('click', () => {
-                selectedValueDisplay.textContent = optionData.name;
-                selectedValueDisplay.setAttribute('data-value', optionData.value || ''); // Ensure data-value is empty string for "None"
+                // Clear existing content in selectedValueDisplay
+                selectedValueDisplay.innerHTML = ''; 
+
+                // Add image if available
+                if (optionData.image_path) {
+                    const img = document.createElement('img');
+                    img.src = optionData.image_path;
+                    img.classList.add('dropdown-image'); // Use the same class as options
+                    selectedValueDisplay.appendChild(img);
+                }
+
+                // Add text
+                const textSpan = document.createElement('span');
+                textSpan.textContent = optionData.name;
+                textSpan.classList.add('dropdown-text'); // Use the same class as options
+                selectedValueDisplay.appendChild(textSpan);
+
+                selectedValueDisplay.setAttribute('data-value', optionData.value || '');
                 currentSelectedValue = optionData.value || '';
                 currentSelectedObject = optionData;
                 dropdown.classList.remove('open');
@@ -789,7 +824,7 @@ function setupCustomDropdown(dropdownId, optionsData, onSelectCallback = null, i
         });
 
         if (newOptionsData.length === 0) {
-            selectedValueDisplay.textContent = '';
+            selectedValueDisplay.innerHTML = ''; // Clear content
             selectedValueDisplay.setAttribute('data-value', '');
             currentSelectedValue = null;
             currentSelectedObject = null;
@@ -802,19 +837,41 @@ function setupCustomDropdown(dropdownId, optionsData, onSelectCallback = null, i
                                (valueToSelect === '' && includeNoneOption ? finalOptionsData[0] : null); // Select "None" if value is empty and option exists
 
         if (selectedOption) {
-            selectedValueDisplay.textContent = selectedOption.name;
+            selectedValueDisplay.innerHTML = ''; // Clear existing content
+            if (selectedOption.image_path) {
+                const img = document.createElement('img');
+                img.src = selectedOption.image_path;
+                img.classList.add('dropdown-image');
+                selectedValueDisplay.appendChild(img);
+            }
+            const textSpan = document.createElement('span');
+            textSpan.textContent = selectedOption.name;
+            textSpan.classList.add('dropdown-text');
+            selectedValueDisplay.appendChild(textSpan);
+
             selectedValueDisplay.setAttribute('data-value', selectedOption.value || '');
             currentSelectedValue = selectedOption.value || '';
             currentSelectedObject = selectedOption;
         } else {
             // If the value doesn't match any option, default to the first option (which might be "Select X")
             if (finalOptionsData.length > 0) {
-                selectedValueDisplay.textContent = finalOptionsData[0].name;
+                selectedValueDisplay.innerHTML = ''; // Clear content
+                if (finalOptionsData[0].image_path) {
+                    const img = document.createElement('img');
+                    img.src = finalOptionsData[0].image_path;
+                    img.classList.add('dropdown-image');
+                    selectedValueDisplay.appendChild(img);
+                }
+                const textSpan = document.createElement('span');
+                textSpan.textContent = finalOptionsData[0].name;
+                textSpan.classList.add('dropdown-text');
+                selectedValueDisplay.appendChild(textSpan);
+
                 selectedValueDisplay.setAttribute('data-value', finalOptionsData[0].value || '');
                 currentSelectedValue = finalOptionsData[0].value || '';
                 currentSelectedObject = finalOptionsData[0];
             } else {
-                selectedValueDisplay.textContent = '';
+                selectedValueDisplay.innerHTML = ''; // Clear content
                 selectedValueDisplay.setAttribute('data-value', '');
                 currentSelectedValue = null;
                 currentSelectedObject = null;
@@ -905,8 +962,7 @@ function populateCameraAngles(container) {
     }
 }
 
-function handleAddShape() {
-    const shapeType = shapeTypeDropdownValue;
+function createShape(shapeType, x, y) {
     let color = colorSelect.value;
     const label = labelText.value.trim() || `Shape ${Date.now()}`;
     const strokeColor = strokeColorInput.value;
@@ -919,40 +975,27 @@ function handleAddShape() {
     }
 
     if (shapeType === 'freeform') {
-        isDrawingFreeform = true;
-        currentFreeformGroup = null;
-        currentFreeformPathData = [];
-        currentFreeformPathElement = null;
-        SvgManager.clearFreeformPointVisuals();
-        SvgManager.setSelectedShapeGroup(null);
-
-        const svgCanvas = SvgManager.getSvgCanvas();
-        const initialX = svgCanvas.clientWidth / 2;
-        const initialY = svgCanvas.clientHeight / 2;
-
-        currentFreeformPathData = [{ cmd: 'M', x: initialX, y: initialY }];
-        currentFreeformGroup = SvgManager.createFreeformPath(currentFreeformPathData, color, label, strokeColor, strokeWidth, null, isNoColorSelected);
-        currentFreeformPathElement = currentFreeformGroup._shapeBody;
-        SvgManager.setSelectedShapeGroup(currentFreeformGroup);
-        DragAndResize.enableDragAndResize(currentFreeformGroup);
-        SvgManager.addFreeformPointVisual(currentFreeformGroup, { x: initialX, y: initialY }, 0);
-
-    } else {
-        const initialX = 50;
-        const initialY = 50;
-        const initialWidth = 100;
-        const initialHeight = 100;
-
-        const newGroup = SvgManager.createShapeGroup(shapeType, color, label, initialX, initialY, initialWidth, initialHeight, strokeColor, strokeWidth, null, isNoColorSelected);
-        if (newGroup) {
-            DragAndResize.enableDragAndResize(newGroup);
-            labelText.value = '';
-            SvgManager.setSelectedShapeGroup(newGroup);
-        }
+        // This part is now handled by the 'freeform-mode-btn' event listener
+        alert("Please use the 'Freeform' button to start drawing a freeform shape.");
+        return;
     }
-    updateAllButtonStates();
-    historyManager.pushState(SvgManager.getCanvasStateAsData());
-    handleExportPrompt();
+
+    const svgCanvas = SvgManager.getSvgCanvas();
+    // Use provided coordinates, or center if not provided
+    const initialX = x ? x - 50 : (svgCanvas.clientWidth / 2) - 50; // Adjust for shape width
+    const initialY = y ? y - 50 : (svgCanvas.clientHeight / 2) - 50; // Adjust for shape height
+    const initialWidth = 100;
+    const initialHeight = 100;
+
+    const newGroup = SvgManager.createShapeGroup(shapeType, color, label, initialX, initialY, initialWidth, initialHeight, strokeColor, strokeWidth, null, isNoColorSelected);
+    if (newGroup) {
+        DragAndResize.enableDragAndResize(newGroup);
+        labelText.value = '';
+        SvgManager.setSelectedShapeGroup(newGroup);
+        updateAllButtonStates();
+        historyManager.pushState(SvgManager.getCanvasStateAsData());
+        handleExportPrompt();
+    }
 }
 
 function handleNoFillColorChange() {

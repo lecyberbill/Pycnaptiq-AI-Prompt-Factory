@@ -1,13 +1,15 @@
+html, body {
+    height: 100%; /* Ensure html and body take full height */
+    width: 100%; /* Ensure html and body take full width */
+    margin: 0;
+    padding: 0;
+}
+
 body {
     font-family: sans-serif;
-    margin: 0;
     background: linear-gradient(to bottom right, #dbe0f6, #717894); /* Gradient background */
     color: #333; /* Dark text for contrast */
-    display: flex;
-    justify-content: center; /* Center horizontally */
-    align-items: center; /* Center vertically */
-    min-height: 100vh;
-    /* Removed padding to allow main-container to handle spacing */
+    /* Removed flexbox properties from body */
 }
 
 #controls-sidebar h1 {
@@ -188,6 +190,8 @@ body {
 }
 
 .dropdown-option {
+    display: flex; /* Use flexbox for alignment */
+    align-items: center; /* Vertically align items */
     padding: 8px 15px;
     color: #FFFFFF; /* White text */
     cursor: pointer;
@@ -198,6 +202,21 @@ body {
 
 .dropdown-option:hover {
     background-color: rgba(255, 255, 255, 0.1); /* Subtle hover effect */
+}
+
+.dropdown-image {
+    width: 24px;
+    height: 24px;
+    margin-right: 8px;
+    border-radius: 3px; /* Slightly rounded corners for images */
+    flex-shrink: 0; /* Prevent image from shrinking */
+}
+
+.dropdown-text {
+    vertical-align: middle; /* Ensure text is vertically aligned */
+    flex-grow: 1; /* Allow text to take up remaining space */
+    overflow: hidden; /* Hide overflowing text */
+    text-overflow: ellipsis; /* Show ellipsis for hidden text */
 }
 
 .dropdown-option.selected {
@@ -548,4 +567,42 @@ body {
     max-width: 150px; /* Limit image size */
     height: auto;
     border-radius: 4px; /* Slightly rounded corners for the image */
+}
+
+/* Styles for the new shape palette */
+#shape-palette {
+    display: flex;
+    flex-wrap: wrap; /* Allow icons to wrap */
+    gap: 10px;
+    justify-content: flex-start; /* Align to the start */
+    padding: 5px;
+    margin-bottom: 10px;
+    background-color: #333333; /* Match input background */
+    border-radius: 5px;
+}
+
+.shape-icon {
+    width: 60px; /* Increased width */
+    height: 60px; /* Increased height */
+    border: 1px solid #5a5a5a;
+    border-radius: 5px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 40px; /* Increased font size for the icon */
+    cursor: grab;
+    user-select: none;
+    background-color: #4a4a4a; /* Match button background */
+    color: #e0e0e0; /* Light text color */
+    transition: background-color 0.2s, border-color 0.2s;
+}
+
+.shape-icon:hover {
+    background-color: #5a5a5a;
+    border-color: #6a6a6a;
+}
+
+.shape-icon:active {
+    cursor: grabbing;
+    background-color: #007bff;
 }
