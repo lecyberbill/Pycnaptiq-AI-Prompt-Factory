@@ -6,6 +6,8 @@ Pycnaptiq-AI Prompt Factory is a web-based tool designed to help users create vi
 
 <img width="1469" height="1132" alt="image" src="https://github.com/user-attachments/assets/33b0744f-7299-41a3-beef-f3f6897769a7" />
 
+**Flux, image to image** 
+<img width="1249" height="1169" alt="image" src="https://github.com/user-attachments/assets/b9ab094f-9287-49a6-af9b-fe01802c7e38" />
 
 ## Features
 
