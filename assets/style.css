@@ -516,3 +516,24 @@ body {
     fill: #ffe000; /* Lighter yellow on hover */
     stroke: #ffffff; /* White stroke on hover */
 }
+
+/* Styles for the camera angle tooltip */
+.tooltip-image-container {
+    position: fixed; /* Use fixed to position relative to viewport */
+    z-index: 1000; /* Ensure it's on top of other content */
+    border: 1px solid #ccc;
+    background-color: rgba(255, 255, 255, 0.9); /* Slightly transparent background */
+    padding: 5px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    pointer-events: none; /* Allow mouse events to pass through */
+    display: none; /* Hidden by default */
+    overflow: hidden; /* Ensure image stays within bounds */
+}
+
+.tooltip-image-container img {
+    display: block; /* Remove extra space below image */
+    max-width: 100%; /* Ensure image fits container */
+    height: auto;
+    border-radius: 4px; /* Slightly rounded corners for the image */
+}

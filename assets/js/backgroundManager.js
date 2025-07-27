@@ -123,12 +123,12 @@ export function getIdeasForCategory(category) {
 }
 
 export const cameraAngles = [
-    { name: "Wide Shot", prompt_phrase: "a wide shot of" },
-    { name: "Close-up", prompt_phrase: "a close-up of" },
-    { name: "Aerial View", prompt_phrase: "an aerial view of" },
-    { name: "Worm's-Eye View", prompt_phrase: "a worm's-eye view of" },
-    { name: "Eye-Level Shot", prompt_phrase: "an eye-level shot of" },
-    { name: "Medium Shot", prompt_phrase: "a medium shot of" }
+    { name: "Wide Shot", prompt_phrase: "a wide shot of", image_path: "assets/data/Wide_Shot.png" },
+    { name: "Close-up", prompt_phrase: "a close-up of", image_path: "assets/data/Close-up.png" },
+    { name: "Aerial View", prompt_phrase: "an aerial view of", image_path: "assets/data/Aeria_View.png" },
+    { name: "Worm's-Eye View", prompt_phrase: "a worm's-eye view of", image_path: "assets/data/Worm_s-Eye_View.png" },
+    { name: "Eye-Level Shot", prompt_phrase: "an eye-level shot of", image_path: "assets/data/Eye-Level_Shot.png" },
+    { name: "Medium Shot", prompt_phrase: "a medium shot of", image_path: "assets/data/Medium_Shot.png" }
 ];
 
 export function getCameraAngles() {

@@ -846,12 +846,34 @@ function setupCustomDropdown(dropdownId, optionsData, onSelectCallback = null, i
 
 function populateCameraAngles(container) {
     const angles = BackgroundManager.getCameraAngles();
+    const tooltipImageContainer = document.getElementById('camera-angle-tooltip');
+    const tooltipImage = document.getElementById('camera-angle-tooltip-image');
+
     container.innerHTML = '';
     angles.forEach(angle => {
         const button = document.createElement('button');
         button.textContent = angle.name;
         button.classList.add('camera-angle-btn');
         button.setAttribute('data-prompt-phrase', angle.prompt_phrase);
+        
+        // Add mouseover/mouseout listeners for image tooltip
+        if (angle.image_path) {
+            button.addEventListener('mouseover', (e) => {
+                tooltipImage.src = angle.image_path;
+                tooltipImageContainer.style.display = 'block';
+                // Position the tooltip near the mouse or button
+                tooltipImageContainer.style.left = `${e.clientX + 15}px`; // Use clientX/Y for viewport coordinates
+                tooltipImageContainer.style.top = `${e.clientY + 15}px`;
+            });
+            button.addEventListener('mousemove', (e) => {
+                tooltipImageContainer.style.left = `${e.clientX + 15}px`;
+                tooltipImageContainer.style.top = `${e.clientY + 15}px`;
+            });
+            button.addEventListener('mouseout', () => {
+                tooltipImageContainer.style.display = 'none';
+            });
+        }
+
         button.addEventListener('click', () => {
             document.querySelectorAll('.camera-angle-btn').forEach(btn => {
                 btn.classList.remove('selected');
