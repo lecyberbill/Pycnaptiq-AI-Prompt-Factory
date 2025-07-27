@@ -23,7 +23,12 @@ export const backgroundIdeas = {
         { name: "An ancient ruins overgrown with vines and moss", gradient_colors: ["#8B4513", "#A0522D", "#694F3B", "#708090"] },
         { name: "A vast open grassland with a few scattered trees", gradient_colors: ["#BDB76B", "#8FBC8F", "#6B8E23", "#9ACD32"] },
         { name: "A calm ocean surface at sunset", gradient_colors: ["#4682B4", "#ADD8E6", "#FF8C00", "#FF4500"] },
-        { name: "A hidden grotto with a clear pond and lush ferns", gradient_colors: ["#2E8B57", "#3CB371", "#20B2AA", "#48D1CC"] }
+        { name: "A hidden grotto with a clear pond and lush ferns", gradient_colors: ["#2E8B57", "#3CB371", "#20B2AA", "#48D1CC"] },
+        { name: "A tranquil forest stream with mossy rocks and dappled light", gradient_colors: ["#2E8B57", "#3CB371", "#20B2AA", "#48D1CC"] },
+        { name: "A serene desert oasis with palm trees and a clear pool", gradient_colors: ["#ADD8E6", "#66CDAA", "#DAA520", "#CD853F"] },
+        { name: "A winding dirt path through a field of wild flowers", gradient_colors: ["#BDB76B", "#8FBC8F", "#6B8E23", "#9ACD32"] },
+        { name: "A dense fog rolling over a calm lake at dawn", gradient_colors: ["#D3D3D3", "#A9A9A9", "#778899", "#C0C0C0"] },
+        { name: "A vibrant autumn forest with colorful foliage", gradient_colors: ["#FF4500", "#FFA500", "#FFD700", "#CD853F"] }
     ],
     "Urban/Man-made Environments": [
         { name: "A futuristic city at night with glowing neon lights and flying vehicles", gradient_colors: ["#000033", "#000066", "#000000", "#1A1A1A"] },
@@ -49,7 +54,12 @@ export const backgroundIdeas = {
         { name: "A grand train station with a glass roof", gradient_colors: ["#B0C4DE", "#ADD8E6", "#E0FFFF", "#C0D9D9"] },
         { name: "A busy airport terminal with planes visible through windows", gradient_colors: ["#ADD8E6", "#B0E0E6", "#E0FFFF", "#F0F8FF"] },
         { name: "A bustling sports stadium during a game", gradient_colors: ["#CD5C5C", "#DC143C", "#B22222", "#FF0000"] },
-        { name: "A peaceful garden in a city park", gradient_colors: ["#9ACD32", "#6B8E23", "#8FBC8F", "#556B2F"] }
+        { name: "A peaceful garden in a city park", gradient_colors: ["#9ACD32", "#6B8E23", "#8FBC8F", "#556B2F"] },
+        { name: "A quiet residential street at dawn", gradient_colors: ["#B0C4DE", "#ADD8E6", "#D3D3D3", "#A9A9A9"] },
+        { name: "A modern subway station with trains arriving", gradient_colors: ["#696969", "#2F4F4F", "#000000", "#36454F"] },
+        { name: "A bustling outdoor cafe with string lights", gradient_colors: ["#D2B48C", "#BDB76B", "#CD853F", "#F5DEB3"] },
+        { name: "A sleek, modern bridge at night with city lights reflecting on the water", gradient_colors: ["#4682B4", "#1E90FF", "#00BFFF", "#5F9EA0"] },
+        { name: "A vibrant street art mural on a brick wall", gradient_colors: ["#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF", "#00FFFF"] }
     ],
     "Abstract/Stylized Backgrounds": [
         { name: "A vibrant geometric pattern with overlapping shapes", gradient_colors: ["#FF0000", "#FFA500", "#FFFF00", "#008000", "#0000FF", "#4B0082", "#EE82EE"] },
@@ -66,7 +76,12 @@ export const backgroundIdeas = {
         { name: "A crumpled paper texture with subtle shadows", gradient_colors: ["#F5F5DC", "#D3D3D3", "#A9A9A9", "#C0C0C0"] },
         { name: "A soft, blurred bokeh effect with colorful lights", gradient_colors: ["#FFC0CB", "#FFB6C1", "#FF69B4", "#DB7093", "#FFA07A"] },
         { name: "A flowing liquid metal surface", gradient_colors: ["#C0C0C0", "#A9A9A9", "#808080", "#778899"] },
-        { name: "A shattered glass effect with sharp fragments", gradient_colors: ["#ADD8E6", "#B0E0E6", "#E0FFFF", "#F0F8FF", "#C0D9D9"] }
+        { name: "A shattered glass effect with sharp fragments", gradient_colors: ["#ADD8E6", "#B0E0E6", "#E0FFFF", "#F0F8FF", "#C0D9D9"] },
+        { name: "A vibrant abstract cityscape with geometric shapes and bold colors", gradient_colors: ["#000033", "#000066", "#000000", "#1A1A1A"] },
+        { name: "A soft, pastel gradient with subtle noise texture", gradient_colors: ["#FFC0CB", "#FFB6C1", "#FF69B4", "#DB7093"] },
+        { name: "A dynamic light streak pattern against a dark background", gradient_colors: ["#8A2BE2", "#4B0082", "#DA70D6", "#9932CC"] },
+        { name: "A retro-futuristic synthwave grid with glowing lines and neon colors", gradient_colors: ["#00FFFF", "#00CCFF", "#0099FF", "#0066FF", "#0033FF"] },
+        { name: "A minimalist line art pattern with flowing curves", gradient_colors: ["#FFFFFF", "#F5F5F5", "#DCDCDC", "#E0E0E0"] }
     ],
     "Fantasy/Sci-Fi Backgrounds": [
         { name: "An enchanted forest with glowing flora and magical creatures", gradient_colors: ["#006400", "#228B22", "#3CB371", "#2E8B57"] },
@@ -83,7 +98,12 @@ export const backgroundIdeas = {
         { name: "An underwater city with bioluminescent structures", gradient_colors: ["#4682B4", "#1E90FF", "#00BFFF", "#5F9EA0"] },
         { name: "A time-traveling steampunk city with gears and steam", gradient_colors: ["#B8860B", "#CD853F", "#D2691E", "#D2B48C"] },
         { name: "A cosmic void with swirling galaxies and nebulae", gradient_colors: ["#000033", "#000066", "#000099", "#0000CC"] },
-        { name: "A medieval fantasy village with thatched roofs and dirt roads", gradient_colors: ["#8B4513", "#A0522D", "#CD853F", "#D2B48C"] }
+        { name: "A medieval fantasy village with thatched roofs and dirt roads", gradient_colors: ["#8B4513", "#A0522D", "#CD853F", "#D2B48C"] },
+        { name: "A futuristic space station orbiting a vibrant gas giant", gradient_colors: ["#000033", "#000066", "#000099", "#0000CC"] },
+        { name: "An ancient, crumbling temple lost in a mystical fog", gradient_colors: ["#696969", "#2F4F4F", "#000000", "#36454F"] },
+        { name: "A bioluminescent cave system with strange glowing fungi", gradient_colors: ["#006400", "#228B22", "#3CB371", "#2E8B57"] },
+        { name: "A post-apocalyptic cityscape reclaimed by nature", gradient_colors: ["#708090", "#8B4513", "#A0522D", "#694F3B"] },
+        { name: "A sleek, chrome-plated alien spacecraft interior", gradient_colors: ["#C0C0C0", "#A9A9A9", "#808080", "#778899"] }
     ],
     "Interior Environments": [
         { name: "A minimalist living room with large windows and a view", gradient_colors: ["#F0F0F0", "#D3D3D3", "#B0C4DE"] },
@@ -110,7 +130,12 @@ export const backgroundIdeas = {
         { name: "A classic diner with red booths and checkerboard floor", gradient_colors: ["#B22222", "#FF0000", "#FF4500"] },
         { name: "A busy art museum with famous paintings on display", gradient_colors: ["#E0E0E0", "#C0C0C0", "#A9A9A9"] },
         { name: "A quiet university lecture hall with rows of desks", gradient_colors: ["#778899", "#A9A9A9", "#B0C4DE"] },
-        { name: "A home office with a large desk and computer setup", gradient_colors: ["#D3D3D3", "#A9A9A9", "#778899"] }
+        { name: "A home office with a large desk and computer setup", gradient_colors: ["#D3D3D3", "#A9A9A9", "#778899"] },
+        { name: "A vibrant indoor plant nursery with lush greenery", gradient_colors: ["#228B22", "#006400", "#3CB371", "#8FBC8F"] },
+        { name: "A traditional Japanese tea room with tatami mats and shoji screens", gradient_colors: ["#D2B48C", "#BDB76B", "#CD853F", "#F5DEB3"] },
+        { name: "A sleek, minimalist kitchen with a large island and pendant lights", gradient_colors: ["#FFFFFF", "#F8F8F8", "#E8E8E8", "#D3D3D3"] },
+        { name: "A cozy reading nook with a plush armchair and a stack of books", gradient_colors: ["#8B4513", "#A0522D", "#CD853F", "#D2B48C"] },
+        { name: "A lively indoor market with various stalls and colorful displays", gradient_colors: ["#FFD700", "#FF8C00", "#FF4500", "#FF6347"] }
     ]
 };
 
@@ -144,7 +169,19 @@ export const lightingAndMoods = [
     { name: "Starry Night", prompt_phrase: "starry night lighting" },
     { name: "Dark and Moody", prompt_phrase: "dark and moody lighting" },
     { name: "Vibrant and Energetic", prompt_phrase: "vibrant and energetic lighting" },
-    { name: "Calm and Serene", prompt_phrase: "calm and serene lighting" }
+    { name: "Calm and Serene", prompt_phrase: "calm and serene lighting" },
+    { name: "Mysterious Moonlight", prompt_phrase: "mysterious moonlight" },
+    { name: "Cozy Firelight", prompt_phrase: "cozy firelight" },
+    { name: "Ethereal Glow", prompt_phrase: "ethereal glow" },
+    { name: "Harsh Fluorescent", prompt_phrase: "harsh fluorescent lighting" },
+    { name: "Soft Backlight", prompt_phrase: "soft backlight" },
+    { name: "Vivid Neon", prompt_phrase: "vivid neon lighting" },
+    { name: "Overcast Day", prompt_phrase: "overcast day lighting" },
+    { name: "Rainy Day", prompt_phrase: "rainy day lighting" },
+    { name: "Candlelit", prompt_phrase: "candlelit atmosphere" },
+    { name: "Foggy Morning", prompt_phrase: "foggy morning light" },
+    { name: "Spotlight Effect", prompt_phrase: "spotlight effect" },
+    { name: "Underwater Caustic", prompt_phrase: "underwater caustic lighting" }
 ];
 
 export function getLightingAndMoods() {
@@ -155,11 +192,28 @@ export const artStyles = [
     { name: "Photorealistic", prompt_phrase: "photorealistic" },
     { name: "Oil Painting", prompt_phrase: "oil painting" },
     { name: "Watercolor", prompt_phrase: "watercolor" },
+    { name: "Pencil Sketch", prompt_phrase: "pencil sketch" },
+    { name: "Charcoal Drawing", prompt_phrase: "charcoal drawing" },
     { name: "Cartoon Style", prompt_phrase: "cartoon style" },
+    { name: "Anime Style", prompt_phrase: "anime style" },
+    { name: "Manga Style", prompt_phrase: "manga style" },
     { name: "Pixel Art", prompt_phrase: "pixel art" },
+    { name: "Vector Art", prompt_phrase: "vector art" },
     { name: "Abstract", prompt_phrase: "abstract art style" },
+    { name: "Cubism", prompt_phrase: "cubism art style" },
+    { name: "Impressionism", prompt_phrase: "impressionistic art style" },
+    { name: "Surrealism", prompt_phrase: "surrealistic art style" },
+    { name: "Pop Art", prompt_phrase: "pop art style" },
     { name: "Sketch", prompt_phrase: "sketch art style" },
-    { name: "Digital Art", prompt_phrase: "digital art" }
+    { name: "Digital Art", prompt_phrase: "digital art" },
+    { name: "Concept Art", prompt_phrase: "concept art" },
+    { name: "Matte Painting", prompt_phrase: "matte painting" },
+    { name: "3D Render", prompt_phrase: "3d render" },
+    { name: "Vaporwave", prompt_phrase: "vaporwave art style" },
+    { name: "Steampunk", prompt_phrase: "steampunk art style" },
+    { name: "Cyberpunk", prompt_phrase: "cyberpunk art style" },
+    { name: "Fantasy Art", prompt_phrase: "fantasy art" },
+    { name: "Sci-Fi Art", prompt_phrase: "sci-fi art" }
 ];
 
 export function getArtStyles() {
