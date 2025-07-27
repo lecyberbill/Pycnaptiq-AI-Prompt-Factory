@@ -156,6 +156,7 @@ select {
 .custom-dropdown {
     position: relative; /* Keep relative for positioning selected value and options */
     width: 100%;
+    max-width: 100%; /* Explicitly set max-width to 100% */
     background-color: #333333;
     color: #e0e0e0;
     border: 1px solid #4a4a4a;
@@ -165,7 +166,7 @@ select {
     user-select: none;
     box-sizing: border-box; /* Ensure padding/border included in width */
     min-width: 0; /* Allow shrinking */
-    flex-shrink: 0; /* Prevent dropdown from expanding beyond its width */
+    flex-shrink: 1; /* Allow dropdown to shrink */
 }
 
 .custom-dropdown.open {
@@ -255,6 +256,8 @@ select {
 
 #controls-sidebar {
     flex: 0 0 280px; /* Fixed width for left sidebar, no grow/shrink */
+    width: 280px; /* Explicitly set width */
+    max-width: 280px; /* Explicitly set max-width */
     background-color: #262626;
     border-radius: 8px;
     padding: 15px; /* Adjusted padding for sidebar */
@@ -262,8 +265,7 @@ select {
     display: flex;
     flex-direction: column;
     gap: 15px;
-    /* Removed redundant width: 310px; */
-    /* Removed overflow-x: hidden; */
+    overflow: hidden; /* Clip content that overflows the fixed width */
 }
 
 #controls-sidebar h1 {
@@ -291,7 +293,9 @@ select {
 }
 
 #right-sidebar {
-    flex: 0 0 280px; /* Fixed width for right sidebar */
+    flex: 0 0 350px; /* Set flex-basis to 350px and prevent growing/shrinking */
+    width: 350px; /* Explicitly set width */
+    max-width: 350px; /* Explicitly set max-width to enforce the boundary */
     background-color: #262626;
     border-radius: 8px;
     padding: 15px; /* Adjusted padding for sidebar */
@@ -299,7 +303,7 @@ select {
     display: flex;
     flex-direction: column;
     gap: 15px;
-    /* Removed overflow-x: hidden; */
+    overflow: hidden; /* Clip content that overflows the fixed width */
 }
 
 #right-sidebar h3 {
@@ -321,7 +325,7 @@ select {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    min-width: 0; /* Allow shrinking */
+    min-width: 0; /* Ensure it can shrink as a flex item */
 }
 
 .control-section h3 {
@@ -343,6 +347,7 @@ select {
     margin: 0; /* Remove default margins */
     padding: 0; /* Remove default padding */
     align-items: flex-start; /* Align content to the left */
+    overflow: hidden; /* Hide overflowing content within the control group */
 }
 
 /* For buttons within control groups that should be side-by-side */

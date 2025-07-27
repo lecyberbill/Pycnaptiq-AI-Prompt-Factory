@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Theme switching logic
     const themeToggleButton = document.getElementById('toggle-theme-btn');
-    let currentTheme = 'default'; // 'default' or 'gradio'
+    let currentTheme = 'gradio'; // 'gradio' as default, 'default' (2010) as alternative
 
     // Function to load a stylesheet
     function loadStylesheet(themeName) {
@@ -34,10 +34,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         newLink.type = 'text/css';
         newLink.setAttribute('data-theme', themeName); // Custom attribute to identify our theme link
 
-        if (themeName === 'default') {
-            newLink.href = 'assets/style.css';
-        } else if (themeName === 'gradio') {
+        if (themeName === 'gradio') { // Gradio is now default
             newLink.href = 'assets/style_gradio.css';
+        } else if (themeName === 'default') { // Default (2010) is now alternative
+            newLink.href = 'assets/style.css';
         }
         head.appendChild(newLink);
     }
@@ -46,12 +46,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadStylesheet(currentTheme);
 
     themeToggleButton.addEventListener('click', () => {
-        if (currentTheme === 'default') {
-            currentTheme = 'gradio';
-            themeToggleButton.textContent = 'Switch to Default Theme';
-        } else {
-            currentTheme = 'default';
+        if (currentTheme === 'gradio') {
+            currentTheme = 'default'; // Switch to 2010 theme
             themeToggleButton.textContent = 'Switch to Gradio Theme';
+        } else {
+            currentTheme = 'gradio'; // Switch to Gradio theme
+            themeToggleButton.textContent = 'Switch to 2010 Theme';
         }
         loadStylesheet(currentTheme);
     });
