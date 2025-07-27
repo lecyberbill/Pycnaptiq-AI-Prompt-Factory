@@ -384,6 +384,7 @@ body {
     flex-direction: column;
     gap: 10px;
     width: 100%; /* Take full width of its parent */
+    box-sizing: border-box; /* Include padding in the width */
 }
 
 #prompt-export-controls .control-group {
@@ -441,6 +442,17 @@ body {
 
 .shape-group:active {
     cursor: grabbing;
+}
+
+/* Future Additions Area */
+#future-adds-area {
+    display: flex;
+    flex-direction: column;
+    gap: 15px; /* Spacing between sections */
+    padding: 15px;
+    background: linear-gradient(to bottom right, #616280, #1f253b); /* Consistent with sidebars */
+    border-radius: 15px;
+    box-shadow: 8px 8px 16px #1a1e27, -8px -8px 16px #6a707a;
 }
 
 /* Floating Panel Styling */
@@ -520,10 +532,10 @@ body {
 /* Styles for the camera angle tooltip */
 .tooltip-image-container {
     position: fixed; /* Use fixed to position relative to viewport */
-    z-index: 1000; /* Ensure it's on top of other content */
+    z-index: 9999; /* Ensure it's on top of other content */
     border: 1px solid #ccc;
     background-color: rgba(255, 255, 255, 0.9); /* Slightly transparent background */
-    padding: 5px;
+    padding: 10px;
     border-radius: 8px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
     pointer-events: none; /* Allow mouse events to pass through */
@@ -533,7 +545,7 @@ body {
 
 .tooltip-image-container img {
     display: block; /* Remove extra space below image */
-    max-width: 100%; /* Ensure image fits container */
+    max-width: 150px; /* Limit image size */
     height: auto;
     border-radius: 4px; /* Slightly rounded corners for the image */
 }

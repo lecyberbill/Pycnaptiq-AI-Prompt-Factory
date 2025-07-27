@@ -834,6 +834,20 @@ function setupCustomDropdown(dropdownId, optionsData, onSelectCallback = null, i
             }
         });
         dropdown.classList.toggle('open');
+
+        // Dynamically set position and width of dropdown options when opened
+        if (dropdown.classList.contains('open')) {
+            const rect = selectedValueDisplay.getBoundingClientRect();
+            optionsContainer.style.position = 'fixed'; // Override absolute to fixed
+            optionsContainer.style.top = `${rect.bottom}px`;
+            optionsContainer.style.left = `${rect.left}px`;
+            optionsContainer.style.width = `${rect.width}px`;
+        } else {
+            optionsContainer.style.position = ''; // Reset position
+            optionsContainer.style.top = '';
+            optionsContainer.style.left = '';
+            optionsContainer.style.width = '';
+        }
     });
 
     return {
