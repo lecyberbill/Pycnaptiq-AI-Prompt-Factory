@@ -29,6 +29,7 @@ Pycnaptiq-AI Prompt Factory is a web-based tool designed to help users create vi
     -   Create custom freeform paths with editable points.
     -   Convert line segments to Bezier curves with adjustable control handles for precise shape manipulation.
 -   **Export Options:** Export the generated prompt, copy the prompt to clipboard (excluding instructional text), save the canvas as an SVG file, or export it as a PNG image.
+-   **Pose Estimation and Manipulation:** Create and manipulate a skeletal pose model directly on the canvas, with the ability to generate descriptive text for the pose.
 
 ## Getting Started
 
@@ -115,6 +116,12 @@ To run Shap Prompteur locally, you need Python installed on your system to serve
 
 7.  **Clear Canvas:**
     -   Click "Clear Canvas" to remove all shapes from the canvas.
+
+8.  **Pose Mode:**
+    -   Click the "Toggle Pose Mode" button to activate or deactivate the pose manipulation interface.
+    -   In pose mode, a skeletal model appears on the canvas. You can drag the circular joints to manipulate the pose.
+    -   The background of the canvas is cleared in pose mode to provide a clear view of the skeletal model.
+    -   When you generate a prompt, the current pose will be described along with other elements on the canvas.
 
 ## Project Structure
 
