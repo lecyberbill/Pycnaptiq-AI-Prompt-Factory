@@ -9,6 +9,10 @@ Pycnaptiq-AI Prompt Factory is a web-based tool designed to help users create vi
 **Flux, image to image** 
 <img width="1249" height="1169" alt="image" src="https://github.com/user-attachments/assets/b9ab094f-9287-49a6-af9b-fe01802c7e38" />
 
+**Pose generator ** 
+<img width="1539" height="979" alt="image" src="https://github.com/user-attachments/assets/511d615c-bdc1-4c80-a474-50c96d3dd8ba" />
+
+
 ## Features
 
 -   **Shape Creation:** Add rectangles, circles, ellipses, triangles, and freeform shapes to the canvas.
