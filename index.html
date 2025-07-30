@@ -21,6 +21,12 @@
                     </div>
                     <div class="control-group">
                         <button id="freeform-mode-btn">Freeform</button>
+                        <button id="pose-mode-btn">Pose</button>
+                    </div>
+                    <div id="pose-mode-controls" class="control-group" style="display: none;">
+                        <label for="pose-background-image">Pose Background:</label>
+                        <input type="file" id="pose-background-image" accept="image/*">
+                        <button id="clear-pose-background">Clear</button>
                     </div>
                     <div class="control-group">
                         <input type="text" id="shape-label" placeholder="Label">
@@ -255,5 +261,106 @@
 
     <script type="module" src="assets/js/historyManager.js"></script>
     <script type="module" src="assets/js/main.js"></script>
+    <script>
+    // --- Correction image pose mode ---
+    (function() {
+        const svg = document.getElementById('svg-canvas');
+        const input = document.getElementById('pose-background-image');
+        const clearBtn = document.getElementById('clear-pose-background');
+        let poseBgImageElement = null;
+
+        if (!svg || !input) return;
+
+        input.addEventListener('change', function(e) {
+            if (e.target.files && e.target.files[0]) {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    // Supprime l'ancienne image si présente
+                    if (poseBgImageElement) poseBgImageElement.remove();
+
+                    // Crée l'élément image SVG
+                    const img = document.createElementNS('http://www.w3.org/2000/svg', 'image');
+                    img.setAttribute('id', 'pose-bg-img');
+                    img.classList.add('pose-bg-img');
+                    img.setAttribute('x', 0);
+                    img.setAttribute('y', 0);
+                    img.setAttribute('width', svg.width.baseVal.value);
+                    img.setAttribute('height', svg.height.baseVal.value);
+                    img.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+                    img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', ev.target.result);
+
+                    // Ajoute l'image tout au début du SVG (après un éventuel fond noir)
+                    if (svg.firstChild) {
+                        svg.insertBefore(img, svg.firstChild.nextSibling);
+                    } else {
+                        svg.appendChild(img);
+                    }
+                    poseBgImageElement = img;
+
+                    // Ajoute le zoom et le déplacement
+                    let scale = 1, translateX = 0, translateY = 0;
+                    let isDragging = false;
+                    let startPos = { x: 0, y: 0 };
+
+                    function updateTransform() {
+                        img.setAttribute('transform', `translate(${translateX} ${translateY}) scale(${scale})`);
+                    }
+
+                    // Zoom avec la molette
+                    img.addEventListener('wheel', function(e) {
+                        e.preventDefault();
+                        scale += e.deltaY < 0 ? 0.05 : -0.05;
+                        scale = Math.max(0.1, Math.min(5, scale)); // Limite le zoom
+                        updateTransform();
+                    });
+
+                    // Début du déplacement
+                    img.addEventListener('mousedown', function(e) {
+                        if (e.altKey) {
+                            e.preventDefault();
+                            isDragging = true;
+                            startPos = { x: e.clientX, y: e.clientY };
+                            svg.style.cursor = 'grabbing';
+                        }
+                    });
+
+                    // Déplacement
+                    svg.addEventListener('mousemove', function(e) {
+                        if (isDragging) {
+                            e.preventDefault();
+                            const dx = e.clientX - startPos.x;
+                            const dy = e.clientY - startPos.y;
+                            translateX += dx;
+                            translateY += dy;
+                            startPos = { x: e.clientX, y: e.clientY };
+                            updateTransform();
+                        }
+                    });
+
+                    // Fin du déplacement (sur le document pour attraper le relâchement n'importe où)
+                    document.addEventListener('mouseup', function(e) {
+                        if (isDragging) {
+                            isDragging = false;
+                            svg.style.cursor = 'default';
+                        }
+                    });
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function() {
+                if (poseBgImageElement) {
+                    poseBgImageElement.remove();
+                    poseBgImageElement = null;
+                }
+                input.value = '';
+            });
+        }
+    })();
+    // --- Fin correction image pose mode ---
+    </script>
 </body>
 </html>

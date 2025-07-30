@@ -5,6 +5,7 @@ import * as DragAndResize from './dragAndResize.js';
 import { getClosestColorName } from './colorUtils.js';
 import * as BackgroundManager from './backgroundManager.js';
 import * as DataManager from './dataManager.js'; // Import the data manager
+import * as PoseManager from './poseManager.js';
 
 let historyManager; // Will be initialized in setupEventListeners
 
@@ -284,6 +285,29 @@ export function setupEventListeners(historyMgr) {
     }
     
     // Freeform mode button
+    const poseModeBtn = document.getElementById('pose-mode-btn');
+    poseModeBtn.addEventListener('click', () => {
+        PoseManager.togglePosingMode();
+    });
+
+    const poseBackgroundImageInput = document.getElementById('pose-background-image');
+    poseBackgroundImageInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                SvgManager.getSvgCanvas().style.backgroundImage = `url('${event.target.result}')`;
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    const clearPoseBackgroundBtn = document.getElementById('clear-pose-background');
+    clearPoseBackgroundBtn.addEventListener('click', () => {
+        SvgManager.getSvgCanvas().style.backgroundImage = 'none';
+        poseBackgroundImageInput.value = ''; // Reset file input
+    });
+
     const freeformBtn = document.getElementById('freeform-mode-btn');
     freeformBtn.addEventListener('click', () => {
         shapeTypeDropdownValue = 'freeform';
@@ -352,7 +376,7 @@ export function setupEventListeners(historyMgr) {
     if (initialBackgroundIdeas.length > 0) {
         selectedBackgroundIdea = initialBackgroundIdeas[0].name;
         selectedBackgroundGradientColors = initialBackgroundIdeas[0].gradient_colors;
-        SvgManager.setCanvasBackgroundGradient(selectedBackgroundGradientColors); // Apply initial gradient
+        SvgManager.setCanvasBackgroundGradient(['#000000']); // Apply initial gradient
     }
 
     // Push the true initial state to history after all setup is complete
@@ -1235,6 +1259,11 @@ function handleExportPrompt() {
         intro_sentence += ` The lighting is ${selectedLightingMood}.`;
     }
 
+    const poseDescription = PoseManager.getPoseDescription();
+    if (poseDescription) {
+        intro_sentence += ` ${poseDescription}.`;
+    }
+
     let prompt = intro_sentence;
 
     const shapePhrases = [];
@@ -1602,7 +1631,16 @@ document.addEventListener('dblclick', (e) => {
 
 function handleExportPng() {
     const svgCanvas = SvgManager.getSvgCanvas();
+    // Masque explicitement l'image de fond pose
+    const poseBgImg = svgCanvas.querySelector('.pose-bg-img');
+    let poseBgImgDisplay = null;
+    if (poseBgImg) {
+        poseBgImgDisplay = poseBgImg.style.display;
+        poseBgImg.style.display = 'none';
+    }
     const selectedShape = SvgManager.getSelectedShapeGroup();
+    const originalBackgroundImage = svgCanvas.style.backgroundImage;
+    svgCanvas.style.backgroundImage = 'none'; // Temporarily remove background image
 
     // Temporarily remove selection and handles for a clean export
     const handlesToRestore = [];
@@ -1656,6 +1694,8 @@ function handleExportPng() {
         if (selectedShape) {
             selectedShape.classList.add('selected');
         }
+        svgCanvas.style.backgroundImage = originalBackgroundImage; // Restore background image
+        if (poseBgImg) poseBgImg.style.display = poseBgImgDisplay;
     };
 
     img.onerror = (e) => {
@@ -1669,6 +1709,8 @@ function handleExportPng() {
         if (selectedShape) {
             selectedShape.classList.add('selected');
         }
+        svgCanvas.style.backgroundImage = originalBackgroundImage; // Restore background image
+        if (poseBgImg) poseBgImg.style.display = poseBgImgDisplay;
     };
 
     img.src = url;
@@ -1747,6 +1789,19 @@ function handleSaveIdCardAttributes() {
 function handleSaveSvg() {
     const svgCanvas = SvgManager.getSvgCanvas();
     const selectedShape = SvgManager.getSelectedShapeGroup();
+    const originalBackgroundImage = svgCanvas.style.backgroundImage;
+    svgCanvas.style.backgroundImage = 'none'; // Temporarily remove background image
+
+    // Masque temporairement l'image de fond pose
+    const poseBgImg = svgCanvas.querySelector('.pose-bg-img');
+    let poseBgImgDisplay = null;
+    if (poseBgImg) {
+        poseBgImgDisplay = poseBgImg.style.display;
+        poseBgImg.style.display = 'none';
+    }
+
+    // Si on veut exporter uniquement la pose (formes, joints, etc.) sans image de fond pose
+    // on masque l'image de fond pose (déjà fait ci-dessus)
 
     const handlesToRestore = [];
     const allShapeGroups = svgCanvas.querySelectorAll('.shape-group');
@@ -1784,4 +1839,6 @@ function handleSaveSvg() {
     if (selectedShape) {
         selectedShape.classList.add('selected');
     }
+    svgCanvas.style.backgroundImage = originalBackgroundImage; // Restore background image
+    if (poseBgImg) poseBgImg.style.display = poseBgImgDisplay;
 }

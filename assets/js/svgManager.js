@@ -109,10 +109,13 @@ export function getCanvasStateAsData() {
  * @param {object} state - A state object containing shapes and background info.
  */
 export function restoreCanvasState(state) {
-    // 1. Clear the canvas completely
-    while (svgCanvas.firstChild) {
-        svgCanvas.removeChild(svgCanvas.firstChild);
-    }
+    // 1. Clear the canvas, but preserve the pose container
+    const children = Array.from(svgCanvas.childNodes);
+    children.forEach(child => {
+        if (child.id !== 'pose-container') {
+            svgCanvas.removeChild(child);
+        }
+    });
     selectedShapeGroup = null;
 
     // 2. Restore the background from the state object
@@ -859,10 +862,14 @@ export function deleteSelectedShape() {
 }
 
 export function clearCanvas() {
-    // Remove all child elements from the SVG canvas
-    while (svgCanvas.firstChild) {
-        svgCanvas.removeChild(svgCanvas.firstChild);
-    }
+    // Remove all child elements from the SVG canvas except the pose container
+    const children = Array.from(svgCanvas.childNodes);
+    children.forEach(child => {
+        if (child.id !== 'pose-container') {
+            svgCanvas.removeChild(child);
+        }
+    });
+
     selectedShapeGroup = null;
     currentGradient = null; // Reset la variable interne du fond
 
@@ -1001,5 +1008,3 @@ export function sendBackward(group) {
         svgCanvas.insertBefore(group, group.previousSibling);
     }
 }
-
-

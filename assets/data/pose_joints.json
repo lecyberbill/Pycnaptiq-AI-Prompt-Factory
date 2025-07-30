@@ -1,0 +1,39 @@
+{
+    "joints": [
+      { "name": "nose", "x": 430, "y": 80, "color": "#ff0000" },
+      { "name": "left_eye", "x": 445, "y": 70, "color": "#00ff00" },
+      { "name": "right_eye", "x": 415, "y": 70, "color": "#00ff00" },
+      { "name": "left_ear", "x": 460, "y": 80, "color": "#0000ff" },
+      { "name": "right_ear", "x": 400, "y": 80, "color": "#0000ff" },
+      { "name": "left_shoulder", "x": 500, "y": 120, "color": "#ffff00" },
+      { "name": "right_shoulder", "x": 360, "y": 120, "color": "#ff00ff" },
+      { "name": "left_elbow", "x": 540, "y": 180, "color": "#ffff00" },
+      { "name": "right_elbow", "x": 320, "y": 180, "color": "#ff00ff" },
+      { "name": "left_wrist", "x": 580, "y": 240, "color": "#ffff00" },
+      { "name": "right_wrist", "x": 280, "y": 240, "color": "#ff00ff" },
+      { "name": "left_hip", "x": 450, "y": 300, "color": "#00ffff" },
+      { "name": "right_hip", "x": 390, "y": 300, "color": "#00ffff" },
+      { "name": "left_knee", "x": 480, "y": 400, "color": "#00ffff" },
+      { "name": "right_knee", "x": 360, "y": 400, "color": "#00ffff" },
+      { "name": "left_ankle", "x": 510, "y": 500, "color": "#00ffff" },
+      { "name": "right_ankle", "x": 330, "y": 500, "color": "#00ffff" }
+    ],
+    "bones": [
+      { "points": ["left_shoulder", "right_shoulder"], "color": "#ff80ed" },
+      { "points": ["left_shoulder", "left_elbow"], "color": "#42d4f4" },
+      { "points": ["left_elbow", "left_wrist"], "color": "#f58231" },
+      { "points": ["right_shoulder", "right_elbow"], "color": "#3cb44b" },
+      { "points": ["right_elbow", "right_wrist"], "color": "#ffe119" },
+      { "points": ["left_shoulder", "left_hip"], "color": "#e6194B" },
+      { "points": ["right_shoulder", "right_hip"], "color": "#e6194B" },
+      { "points": ["left_hip", "right_hip"], "color": "#e6194B" },
+      { "points": ["left_hip", "left_knee"], "color": "#4363d8" },
+      { "points": ["left_knee", "left_ankle"], "color": "#911eb4" },
+      { "points": ["right_hip", "right_knee"], "color": "#f032e6" },
+      { "points": ["right_knee", "right_ankle"], "color": "#a9a9a9" },
+      { "points": ["nose", "left_eye"], "color": "#bfef45" },
+      { "points": ["nose", "right_eye"], "color": "#bfef45" },
+      { "points": ["left_eye", "left_ear"], "color": "#fabed4" },
+      { "points": ["right_eye", "right_ear"], "color": "#ffd8b1" }
+    ]
+  }

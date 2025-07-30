@@ -394,6 +394,13 @@ body {
     border-radius: 15px; /* Rounded corners */
     box-shadow: 8px 8px 16px #1a1e27, -8px -8-16px #6a707a;/* Neumorphic shadow */
     pointer-events: all; /* Explicitly ensure it receives pointer events */
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+body.pose-mode-active #pose-mode-controls {
+    display: flex;
 }
 
 #prompt-export-controls {

@@ -47,3 +47,18 @@ export function getHairStyles() {
 export function getHairColors() {
     return hairColorsData;
 }
+
+export async function loadPoseJointsData() {
+    try {
+        const response = await fetch('assets/data/pose_joints.json');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        console.log("Pose joints data loaded successfully.");
+        return data;
+    } catch (error) {
+        console.error("Failed to load pose_joints.json:", error);
+        return null;
+    }
+}
